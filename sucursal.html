@@ -6,6 +6,15 @@
 <title>Pedidos — Sucursal</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="estilos.css">
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#084788">
+<link rel="icon" type="image/png" sizes="192x192" href="/192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/512.png">
+<link rel="apple-touch-icon" href="/192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MQB Pedidos">
 </head>
 <body class="min-h-screen">
 
@@ -233,13 +242,11 @@ function abrirMenu(){
   sidebarEl.classList.add("sidebar-abierto");
   sidebarOverlay.classList.remove("hidden");
   btnMenu.setAttribute("aria-expanded", "true");
-  document.body.classList.add("sin-scroll");
 }
 function cerrarMenu(){
   sidebarEl.classList.remove("sidebar-abierto");
   sidebarOverlay.classList.add("hidden");
   btnMenu.setAttribute("aria-expanded", "false");
-  document.body.classList.remove("sin-scroll");
 }
 btnMenu.addEventListener("click", abrirMenu);
 btnCerrarMenu.addEventListener("click", cerrarMenu);
@@ -247,6 +254,43 @@ sidebarOverlay.addEventListener("click", cerrarMenu);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") cerrarMenu();
 });
+
+// ---------- Bloqueo de scroll externo (sidebar + modales) ----------
+// En vez de tocar "sin-scroll" a mano en cada lugar donde se abre o cierra
+// el sidebar o alguno de los modales (y arriesgarse a que un cierre se
+// olvide de sacarlo, o que se saque de más si hay más de uno abierto a la
+// vez), un observer mira las clases de cada panel y recalcula el estado
+// del body solo con revisar qué hay abierto en ese momento.
+const elementosQueBloqueanScroll = [
+  sidebarEl,
+  document.getElementById("modal"),
+  document.getElementById("modal-confirmar-pedido"),
+].filter(Boolean);
+
+// Con overflow:hidden solo, el fondo en iOS/Android igual "rebota" y a
+// veces scrollea un poco al arrastrar el dedo. La forma que de verdad
+// funciona en mobile es fijar el body en su lugar (position:fixed) y,
+// al cerrar, devolverlo a la posición de scroll donde estaba.
+let scrollGuardado = 0;
+function actualizarBloqueoScroll(){
+  const hayAlgoAbierto = sidebarEl.classList.contains("sidebar-abierto")
+    || elementosQueBloqueanScroll.some(el => el !== sidebarEl && !el.classList.contains("hidden"));
+  const yaBloqueado = document.body.classList.contains("sin-scroll");
+
+  if (hayAlgoAbierto && !yaBloqueado) {
+    scrollGuardado = window.scrollY || document.documentElement.scrollTop || 0;
+    document.body.style.top = `-${scrollGuardado}px`;
+    document.body.classList.add("sin-scroll");
+  } else if (!hayAlgoAbierto && yaBloqueado) {
+    document.body.classList.remove("sin-scroll");
+    document.body.style.top = "";
+    window.scrollTo(0, scrollGuardado);
+  }
+}
+elementosQueBloqueanScroll.forEach(el => {
+  new MutationObserver(actualizarBloqueoScroll).observe(el, { attributes: true, attributeFilter: ["class"] });
+});
+actualizarBloqueoScroll();
 
 // ---------- Tabs ----------
 document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -676,6 +720,17 @@ function iniciarListeners(){
     },
     (err) => console.error("Error leyendo mis pedidos:", err)
   );
+}
+</script>
+<script>
+// Registra el service worker para que la app sea instalable (ícono propio,
+// se abre sin barra del navegador) y abra un instante aunque no haya señal.
+// Si falla (por ejemplo, mirando el sitio en un entorno sin HTTPS), no pasa
+// nada: la app funciona igual, solo sin esta parte.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
 }
 </script>
 </body>
