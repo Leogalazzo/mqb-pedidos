@@ -11,9 +11,27 @@
 
 <div id="cargando-pagina"><span class="spinner spinner-oscuro"></span>Cargando…</div>
 
+<!-- Botón hamburguesa: solo visible en mobile, fijo arriba a la izquierda -->
+<button id="btn-menu" class="menu-hamburguesa md:hidden no-imprimir" aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <line x1="3" y1="12" x2="21" y2="12"></line>
+    <line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+</button>
+
+<!-- Overlay detrás del sidebar en mobile: tocarlo cierra el menú -->
+<div id="sidebar-overlay" class="sidebar-overlay hidden md:hidden no-imprimir"></div>
+
 <div class="flex min-h-screen">
   <!-- Sidebar -->
-  <aside class="no-imprimir w-64 shrink-0 border-r px-5 py-7 flex flex-col justify-between" style="border-color:var(--linea)">
+  <aside id="sidebar" class="sidebar no-imprimir w-64 shrink-0 border-r px-5 py-7 flex flex-col justify-between" style="border-color:var(--linea)">
+    <button id="btn-cerrar-menu" class="btn-cerrar-menu md:hidden" aria-label="Cerrar menú">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
     <div>
       <div class="sidebar-logo">
         <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers">
@@ -48,16 +66,16 @@
   </aside>
 
   <!-- Main -->
-  <main class="flex-1 px-8 py-6 no-imprimir">
+  <main class="flex-1 px-4 pt-20 pb-6 md:px-8 md:pt-6 no-imprimir">
 
     <!-- TAB PEDIDOS -->
     <section id="tab-pedidos">
       <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
         <h1 class="font-display text-2xl font-700">Pedidos de sucursales</h1>
-        <form id="form-buscar-pedido" class="flex items-center gap-2">
+        <form id="form-buscar-pedido" class="flex items-center gap-2 w-full sm:w-auto">
           <input type="text" inputmode="numeric" id="buscador-numero-pedido" placeholder="Buscar por # de pedido"
-            class="border rounded px-3 py-2 text-sm w-48" style="border-color:var(--linea)">
-          <button type="submit" class="px-3 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Buscar</button>
+            class="border rounded px-3 py-2 text-sm min-w-0 flex-1 sm:w-48 sm:flex-none" style="border-color:var(--linea)">
+          <button type="submit" class="px-3 py-2 rounded border font-600 text-sm shrink-0" style="border-color:var(--linea)">Buscar</button>
         </form>
       </div>
       <p id="buscador-numero-pedido-error" class="text-sm mb-3 hidden" style="color:var(--rojo)"></p>
@@ -166,52 +184,56 @@
 
 <!-- Modal detalle de pedido -->
 <div id="modal" class="no-imprimir fixed inset-0 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.65)">
-  <div class="rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
-    <div class="flex items-start justify-between mb-1">
+  <div class="modal-caja rounded-xl max-w-2xl w-full p-4 sm:p-6" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
+    <div class="flex items-start justify-between mb-1 modal-fijo">
       <div>
         <div class="font-display text-xl font-700">Pedido <span id="modal-numero" class="num-mono"></span></div>
         <div class="text-sm" style="color:var(--tinta-suave)" id="modal-sucursal"></div>
       </div>
       <button id="modal-cerrar" class="text-2xl leading-none" style="color:var(--tinta-suave)">&times;</button>
     </div>
-    <div id="modal-badge" class="mb-2"></div>
-    <div id="modal-etapa-info" class="aviso-etapa"></div>
+    <div id="modal-badge" class="mb-2 modal-fijo"></div>
+    <div id="modal-etapa-info" class="aviso-etapa modal-fijo"></div>
 
-    <table class="w-full text-sm mb-4">
-      <thead>
-        <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
-          <th class="py-2 font-600">Producto</th>
-          <th class="py-2 font-600 text-right">Pedido</th>
-          <th class="py-2 font-600 text-right">Enviar</th>
-          <th class="py-2 font-600">Nota (si difiere)</th>
-        </tr>
-      </thead>
-      <tbody id="modal-items"></tbody>
-    </table>
+    <div class="modal-cuerpo">
+      <div class="tabla-scroll mb-4">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
+              <th class="py-2 font-600">Producto</th>
+              <th class="py-2 font-600 text-right">Pedido</th>
+              <th class="py-2 font-600 text-right">Enviar</th>
+              <th class="py-2 font-600">Nota (si difiere)</th>
+            </tr>
+          </thead>
+          <tbody id="modal-items"></tbody>
+        </table>
+      </div>
 
-    <div id="modal-nota-sucursal-wrap" class="mb-4 text-sm hidden">
-      <span class="font-600">Nota de la sucursal al pedir:</span> <span id="modal-nota-sucursal-pedido"></span>
+      <div id="modal-nota-sucursal-wrap" class="mb-4 text-sm hidden">
+        <span class="font-600">Nota de la sucursal al pedir:</span> <span id="modal-nota-sucursal-pedido"></span>
+      </div>
+
+      <!-- Nota editable: en "pendiente" es el motivo de rechazo; en "en_preparacion"
+           son las aclaraciones sobre lo que se termina enviando. Fuera de esas dos
+           etapas ya no se edita más (ver el bloque de lectura de abajo). -->
+      <div id="modal-nota-general-editar-wrap" class="mb-4 hidden">
+        <label id="modal-nota-general-label" class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)"></label>
+        <textarea id="modal-nota-general" rows="2" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)"></textarea>
+      </div>
+
+      <!-- Nota de central, ya de solo lectura (pedido despachado, recibido o rechazado) -->
+      <div id="modal-nota-central-lectura-wrap" class="mb-4 text-sm hidden">
+        <span class="font-600">Nota de central:</span> <span id="modal-nota-central-lectura"></span>
+      </div>
+
+      <!-- Nota que dejó la sucursal al confirmar la recepción (solo pedidos recibidos) -->
+      <div id="modal-nota-recepcion-wrap" class="mb-4 text-sm hidden">
+        <span class="font-600">Nota de la sucursal al recibir:</span> <span id="modal-nota-recepcion"></span>
+      </div>
     </div>
 
-    <!-- Nota editable: en "pendiente" es el motivo de rechazo; en "en_preparacion"
-         son las aclaraciones sobre lo que se termina enviando. Fuera de esas dos
-         etapas ya no se edita más (ver el bloque de lectura de abajo). -->
-    <div id="modal-nota-general-editar-wrap" class="mb-4 hidden">
-      <label id="modal-nota-general-label" class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)"></label>
-      <textarea id="modal-nota-general" rows="2" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)"></textarea>
-    </div>
-
-    <!-- Nota de central, ya de solo lectura (pedido despachado, recibido o rechazado) -->
-    <div id="modal-nota-central-lectura-wrap" class="mb-4 text-sm hidden">
-      <span class="font-600">Nota de central:</span> <span id="modal-nota-central-lectura"></span>
-    </div>
-
-    <!-- Nota que dejó la sucursal al confirmar la recepción (solo pedidos recibidos) -->
-    <div id="modal-nota-recepcion-wrap" class="mb-4 text-sm hidden">
-      <span class="font-600">Nota de la sucursal al recibir:</span> <span id="modal-nota-recepcion"></span>
-    </div>
-
-    <div class="flex flex-wrap gap-2 mb-5">
+    <div class="modal-botones mb-5 modal-fijo">
       <button id="btn-imprimir" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Imprimir hoja de producción</button>
       <button id="btn-en-preparacion" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Marcar en preparación</button>
       <button id="btn-confirmar-envio" class="hidden px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--verde)">Confirmar envío</button>
@@ -219,7 +241,7 @@
       <button id="btn-rechazar" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--rojo); color:var(--rojo)">Rechazar pedido</button>
     </div>
 
-    <div class="pt-4 border-t" style="border-color:var(--linea)">
+    <div class="pt-4 border-t modal-fijo" style="border-color:var(--linea)">
       <div class="text-xs font-600 mb-2" style="color:var(--tinta-suave)">Historial</div>
       <ul id="modal-historial" class="text-xs space-y-1" style="color:var(--tinta-suave)"></ul>
     </div>
@@ -416,6 +438,38 @@ onAuthStateChanged(auth, async (user) => {
 });
 document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
 
+// ---------- Menú hamburguesa (mobile) ----------
+// Va antes de "Tabs" a propósito: esa sección hace .click() en el primer tab
+// apenas se define, y ese click llama a cerrarMenu() — si sidebarEl y compañía
+// se declararan después, sería una referencia a una const todavía no
+// inicializada (TDZ) y explotaría al cargar la página.
+// El sidebar en mobile es un panel que entra desde la izquierda (ver .sidebar
+// en estilos.css). En desktop (md:) queda siempre visible y estos botones
+// no se muestran, así que esta lógica no tiene efecto ahí.
+const btnMenu = document.getElementById("btn-menu");
+const btnCerrarMenu = document.getElementById("btn-cerrar-menu");
+const sidebarEl = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
+
+function abrirMenu(){
+  sidebarEl.classList.add("sidebar-abierto");
+  sidebarOverlay.classList.remove("hidden");
+  btnMenu.setAttribute("aria-expanded", "true");
+  document.body.classList.add("sin-scroll");
+}
+function cerrarMenu(){
+  sidebarEl.classList.remove("sidebar-abierto");
+  sidebarOverlay.classList.add("hidden");
+  btnMenu.setAttribute("aria-expanded", "false");
+  document.body.classList.remove("sin-scroll");
+}
+btnMenu.addEventListener("click", abrirMenu);
+btnCerrarMenu.addEventListener("click", cerrarMenu);
+sidebarOverlay.addEventListener("click", cerrarMenu);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") cerrarMenu();
+});
+
 // ---------- Tabs ----------
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -429,6 +483,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     // no gastar lecturas de más si nadie mira esta pestaña); se carga recién
     // la primera vez que se abre.
     if (btn.dataset.tab === "historial" && !conteosCargados) cargarConteosSucursales();
+    cerrarMenu(); // en mobile, elegir una sección cierra el sidebar
   });
 });
 document.querySelector('.tab-btn[data-tab="pedidos"]').click();
@@ -643,9 +698,9 @@ function renderSucursales(sucursales){
     .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""))
     .forEach(s => {
       const row = document.createElement("div");
-      row.className = "ticket px-4 py-3 flex items-center gap-3";
+      row.className = "ticket px-4 py-3 flex flex-wrap items-center gap-2 sm:gap-3";
       row.innerHTML = `
-        <input type="text" class="edit-nombre-sucursal flex-1 border rounded px-3 py-2 text-sm font-600"
+        <input type="text" class="edit-nombre-sucursal w-full sm:w-auto sm:flex-1 border rounded px-3 py-2 text-sm font-600"
           style="border-color:var(--linea)" value="${escapeHtml(s.nombre || "")}">
         <span class="text-xs truncate" style="color:var(--tinta-suave); max-width:14rem">${escapeHtml(s.email || "")}</span>
         <button type="button" class="btn-guardar-sucursal px-3 py-1.5 rounded text-xs font-600" style="color:var(--verde)">Guardar</button>
@@ -784,16 +839,16 @@ function estadosDelFiltro(filtro){
 
 function crearTicketPedido(p){
   const row = document.createElement("div");
-  row.className = `ticket px-4 py-3 flex items-center justify-between cursor-pointer ${p.estado}`;
+  row.className = `ticket px-4 py-3 flex items-center justify-between gap-2 cursor-pointer ${p.estado}`;
   row.innerHTML = `
-    <div class="flex items-center gap-4">
-      <div class="num-mono text-lg font-700">#${p.numero ?? "—"}</div>
-      <div>
-        <div class="font-600">${p.sucursalNombre || "Sucursal"}</div>
-        <div class="text-xs" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos</div>
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="num-mono text-lg font-700 shrink-0">#${p.numero ?? "—"}</div>
+      <div class="min-w-0">
+        <div class="font-600 truncate">${p.sucursalNombre || "Sucursal"}</div>
+        <div class="text-xs truncate" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos</div>
       </div>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 shrink-0">
       ${tieneDiferencias(p) ? '<span class="badge badge-diferencia">Diferencia</span>' : ''}
       ${badgeHtml(p.estado)}
     </div>`;
@@ -1435,23 +1490,25 @@ function renderHistorialDetalle(nombre, pedidos, hayMas){
       <div class="text-xs font-600 mb-3" style="color:var(--tinta-suave)">
         Total pedido por producto (sobre los ${pedidos.length} pedido${pedidos.length === 1 ? "" : "s"} cargados${hayMas ? " — hay más, tocá \"Cargar más pedidos\" para incluirlos en el total" : ""})
       </div>
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
-            <th class="py-1.5 font-600">Producto</th>
-            <th class="py-1.5 font-600 text-right">Pedido (total)</th>
-            <th class="py-1.5 font-600 text-right">Enviado (total)</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${filasTotales.map(t => `
-            <tr class="border-b" style="border-color:var(--linea)">
-              <td class="py-1.5">${escapeHtml(t.nombre)} <span class="text-xs" style="color:var(--tinta-suave)">(${escapeHtml(etiquetaUnidad(t.unidad))})</span></td>
-              <td class="py-1.5 text-right num-mono">${t.pedida}</td>
-              <td class="py-1.5 text-right num-mono">${t.enviada}</td>
-            </tr>`).join("") || `<tr><td colspan="3" class="py-2 text-sm" style="color:var(--tinta-suave)">Todavía no hizo ningún pedido.</td></tr>`}
-        </tbody>
-      </table>
+      <div class="tabla-scroll">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
+              <th class="py-1.5 font-600">Producto</th>
+              <th class="py-1.5 font-600 text-right">Pedido (total)</th>
+              <th class="py-1.5 font-600 text-right">Enviado (total)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasTotales.map(t => `
+              <tr class="border-b" style="border-color:var(--linea)">
+                <td class="py-1.5">${escapeHtml(t.nombre)} <span class="text-xs" style="color:var(--tinta-suave)">(${escapeHtml(etiquetaUnidad(t.unidad))})</span></td>
+                <td class="py-1.5 text-right num-mono">${t.pedida}</td>
+                <td class="py-1.5 text-right num-mono">${t.enviada}</td>
+              </tr>`).join("") || `<tr><td colspan="3" class="py-2 text-sm" style="color:var(--tinta-suave)">Todavía no hizo ningún pedido.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="text-xs font-600 mb-2" style="color:var(--tinta-suave)">Pedidos cargados (${pedidos.length})</div>
@@ -1469,11 +1526,11 @@ function renderHistorialDetalle(nombre, pedidos, hayMas){
     const row = document.createElement("div");
     row.className = `ticket px-4 py-3 flex items-center justify-between cursor-pointer flex-wrap gap-2 ${p.estado}`;
     row.innerHTML = `
-      <div class="flex items-center gap-4">
-        <div class="num-mono text-lg font-700">#${p.numero ?? "—"}</div>
-        <div class="text-xs" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos</div>
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="num-mono text-lg font-700 shrink-0">#${p.numero ?? "—"}</div>
+        <div class="text-xs truncate" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos</div>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 shrink-0">
         ${tieneDiferencias(p) ? '<span class="badge badge-diferencia">Diferencia</span>' : ''}
         ${badgeHtml(p.estado)}
       </div>`;
