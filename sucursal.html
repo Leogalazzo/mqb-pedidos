@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos — Sucursal</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body class="min-h-screen">
+
+<div id="cargando-pagina"><span class="spinner spinner-oscuro"></span>Cargando…</div>
+
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="w-64 shrink-0 border-r px-5 py-7 flex flex-col justify-between" style="border-color:var(--linea)">
+    <div>
+      <div class="sidebar-logo">
+        <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers">
+      </div>
+      <div class="text-xs mb-8 text-center" id="usuario-nombre-sub" style="color:var(--tinta-suave)">Sucursal</div>
+      <nav class="space-y-1.5">
+        <button data-tab="nuevo" class="tab-btn w-full text-left px-3.5 py-2.5 rounded-lg font-600 text-sm">
+          <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+          <span>Nuevo pedido</span>
+        </button>
+        <button data-tab="mios" class="tab-btn w-full text-left px-3.5 py-2.5 rounded-lg font-600 text-sm">
+          <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"></path><path d="M9 12h6M9 16h6M9 8h2"></path></svg>
+          <span>Mis pedidos</span>
+        </button>
+      </nav>
+    </div>
+    <div class="pt-5 border-t" style="border-color:var(--linea)">
+      <div id="usuario-nombre" class="text-sm font-600 mb-2"></div>
+      <button id="btn-logout" class="link-pie-sidebar text-xs" style="color:var(--tinta-suave)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 px-8 py-6">
+
+    <!-- TAB NUEVO PEDIDO -->
+    <section id="tab-nuevo">
+      <h1 class="font-display text-2xl font-700 mb-1">Nuevo pedido a central</h1>
+      <p class="text-sm mb-5" style="color:var(--tinta-suave)">Cargá la cantidad de cada producto que necesitás. Dejá en 0 lo que no pedís.</p>
+      <p id="aviso-borrador-recuperado" class="text-sm mb-5 hidden" style="color:var(--ambar)">Recuperamos un pedido que habías empezado a cargar y todavía no enviaste.</p>
+      <div class="mb-4 max-w-sm">
+        <input type="text" id="buscador-productos" placeholder="Buscar producto por nombre o categoría…"
+          class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)">
+      </div>
+      <div id="lista-catalogo" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6"></div>
+      <div id="catalogo-vacio" class="estado-vacio hidden">
+        <div class="estado-vacio-icono">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </div>
+        <p class="estado-vacio-texto" id="catalogo-vacio-texto">Central todavía no cargó productos disponibles</p>
+      </div>
+
+      <div class="mb-4 max-w-lg">
+        <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Nota del pedido (opcional)</label>
+        <textarea id="nota-pedido" rows="2" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)"></textarea>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <button id="btn-enviar-pedido" class="px-5 py-2.5 rounded text-white font-600" style="background:var(--ambar-oscuro)">Enviar pedido</button>
+        <button id="btn-guardar-borrador" type="button" class="px-4 py-2.5 rounded border font-600 text-sm" style="border-color:var(--linea)">Guardar para después</button>
+        <span id="resumen-seleccion" class="text-sm" style="color:var(--tinta-suave)"></span>
+      </div>
+      <p id="confirmacion-envio" class="text-sm mt-3 hidden" style="color:var(--verde)">Pedido enviado a central ✓</p>
+      <p id="confirmacion-borrador" class="text-sm mt-3 hidden" style="color:var(--tinta-suave)">Pedido guardado. Iniciá sesión desde cualquier otra computadora para continuarlo.</p>
+    </section>
+
+    <!-- TAB MIS PEDIDOS -->
+    <section id="tab-mios" class="hidden">
+      <h1 class="font-display text-2xl font-700 mb-5">Mis pedidos</h1>
+      <div id="lista-mis-pedidos" class="space-y-3"></div>
+      <div id="mios-vacio" class="estado-vacio hidden">
+        <div class="estado-vacio-icono">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-6l-2 3h-4l-2-3H2"/>
+            <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+          </svg>
+        </div>
+        <p class="estado-vacio-texto">Todavía no hiciste ningún pedido</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal detalle -->
+<div id="modal" class="fixed inset-0 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.65)">
+  <div class="rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
+    <div class="flex items-start justify-between mb-1">
+      <div>
+        <div class="font-display text-xl font-700">Pedido <span id="modal-numero" class="num-mono"></span></div>
+        <div class="text-sm" style="color:var(--tinta-suave)" id="modal-fecha"></div>
+      </div>
+      <button id="modal-cerrar" class="text-2xl leading-none" style="color:var(--tinta-suave)">&times;</button>
+    </div>
+    <div id="modal-badge" class="mb-4"></div>
+
+    <table class="w-full text-sm mb-4">
+      <thead>
+        <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
+          <th class="py-2 font-600">Producto</th>
+          <th class="py-2 font-600 text-right">Pedido</th>
+          <th class="py-2 font-600 text-right">Enviado</th>
+          <th class="py-2 font-600">Nota de central</th>
+        </tr>
+      </thead>
+      <tbody id="modal-items"></tbody>
+    </table>
+
+    <div id="modal-nota-propia-wrap" class="mb-4 text-sm hidden">
+      <span class="font-600">Tu nota al pedir:</span> <span id="modal-nota-propia"></span>
+    </div>
+
+    <div id="modal-nota-central-wrap" class="mb-4 text-sm hidden">
+      <span class="font-600">Nota general de central:</span> <span id="modal-nota-central"></span>
+    </div>
+
+    <div id="bloque-confirmar" class="hidden mb-5">
+      <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Nota al confirmar (opcional, ej: llegó todo bien / falta algo distinto a lo aclarado)</label>
+      <textarea id="modal-nota-sucursal" rows="2" class="w-full border rounded px-3 py-2 text-sm mb-3" style="border-color:var(--linea)"></textarea>
+      <button id="btn-confirmar-recepcion" class="px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--verde)">Confirmar recepción</button>
+    </div>
+
+    <div id="bloque-cancelar" class="hidden mb-5 pt-1">
+      <button id="btn-cancelar-pedido" type="button" class="btn-texto-peligro">Cancelar este pedido</button>
+      <p class="text-xs mt-1" style="color:var(--tinta-suave)">Solo se puede cancelar mientras central todavía no lo empezó a preparar.</p>
+    </div>
+
+    <div class="pt-4 border-t" style="border-color:var(--linea)">
+      <div class="text-xs font-600 mb-2" style="color:var(--tinta-suave)">Historial</div>
+      <ul id="modal-historial" class="text-xs space-y-1" style="color:var(--tinta-suave)"></ul>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  auth, db, onAuthStateChanged, signOut, obtenerPerfil, siguienteNumeroPedido,
+  collection, query, where, onSnapshot, addDoc, updateDoc, doc, getDoc, setDoc, deleteDoc,
+  serverTimestamp, arrayUnion
+} from "./firebase-config.js";
+import { conCarga, mostrarCargandoLista, ocultarCargaPagina } from "./ui.js";
+import { alertaBonita, confirmarBonito } from "./avisos.js";
+
+let usuario = null;
+let catalogo = [];
+let misPedidos = [];
+
+// Traduce el código guardado ("kg", "l", "un") a la palabra completa para mostrar en pantalla.
+const ETIQUETAS_UNIDAD = { kg: "Kilogramos", l: "Litros", un: "Unidades" };
+function etiquetaUnidad(valor){
+  return ETIQUETAS_UNIDAD[valor] || valor;
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { location.href = "index.html"; return; }
+  const perfil = await obtenerPerfil(user);
+  if (perfil.rol !== "sucursal") { location.href = "index.html"; return; }
+  usuario = { uid: user.uid, ...perfil };
+  document.getElementById("usuario-nombre").textContent = perfil.nombre || "Sucursal";
+  mostrarCargandoLista("lista-catalogo", "Cargando catálogo…");
+  mostrarCargandoLista("lista-mis-pedidos", "Cargando pedidos…");
+  await cargarBorrador();
+  iniciarListeners();
+  ocultarCargaPagina();
+});
+document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
+
+// ---------- Tabs ----------
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("activo"));
+    btn.classList.add("activo");
+    document.getElementById("tab-nuevo").classList.toggle("hidden", btn.dataset.tab !== "nuevo");
+    document.getElementById("tab-mios").classList.toggle("hidden", btn.dataset.tab !== "mios");
+  });
+});
+document.querySelector('.tab-btn[data-tab="nuevo"]').click();
+
+// ================= NUEVO PEDIDO =================
+// Las cantidades ingresadas viven en este mapa (no solo en los inputs del
+// DOM), porque al filtrar con el buscador algunas tarjetas se ocultan o se
+// vuelven a crear — si leyéramos solo del DOM visible, cambiar el texto de
+// búsqueda podría "perder" una cantidad ya cargada en un producto que en
+// ese momento no se ve.
+let cantidadesPedido = new Map(); // productoId -> cantidad
+let terminoBusquedaProductos = "";
+
+// Borrador del pedido en curso: se guarda en Firestore (no en localStorage)
+// para que sea la cuenta la que lo tiene, no el navegador — si la sucursal
+// arranca el pedido en una PC y sigue en otra, lo encuentra igual al entrar.
+// Un solo documento por sucursal (id = uid): guardar de nuevo pisa el
+// anterior, y al enviar el pedido de verdad se borra.
+async function cargarBorrador(){
+  try {
+    const snap = await getDoc(doc(db, "borradores", usuario.uid));
+    if (!snap.exists()) return;
+    const datos = snap.data();
+    (datos.items || []).forEach(it => {
+      if (it.productoId && it.cantidad > 0) cantidadesPedido.set(it.productoId, it.cantidad);
+    });
+    if (datos.nota) document.getElementById("nota-pedido").value = datos.nota;
+    if (cantidadesPedido.size > 0 || datos.nota) {
+      document.getElementById("aviso-borrador-recuperado").classList.remove("hidden");
+    }
+  } catch (err) {
+    console.error("Error leyendo el borrador guardado:", err);
+  }
+}
+
+function productosFiltrados(){
+  const termino = terminoBusquedaProductos.trim().toLowerCase();
+  if (!termino) return catalogo;
+  return catalogo.filter(p =>
+    (p.nombre || "").toLowerCase().includes(termino) ||
+    (p.categoria || "").toLowerCase().includes(termino)
+  );
+}
+
+function renderCatalogo(){
+  const cont = document.getElementById("lista-catalogo");
+  cont.innerHTML = "";
+  const visibles = productosFiltrados();
+  const vacioEl = document.getElementById("catalogo-vacio");
+  const vacioTexto = document.getElementById("catalogo-vacio-texto");
+  if (catalogo.length === 0) {
+    vacioTexto.textContent = "Central todavía no cargó productos disponibles";
+    vacioEl.classList.remove("hidden");
+  } else if (visibles.length === 0) {
+    vacioTexto.textContent = "No se encontraron productos que coincidan con la búsqueda";
+    vacioEl.classList.remove("hidden");
+  } else {
+    vacioEl.classList.add("hidden");
+  }
+
+  visibles.forEach(p => {
+    const cantidadActual = cantidadesPedido.get(p.id) || 0;
+    const card = document.createElement("div");
+    card.className = "producto-card" + (cantidadActual > 0 ? " con-cantidad" : "");
+    card.innerHTML = `
+      <div>
+        <div class="producto-card-nombre">${p.nombre}</div>
+        <div class="producto-card-meta">${etiquetaUnidad(p.unidad)}${p.categoria ? ' · ' + p.categoria : ''}</div>
+      </div>
+      <div class="stepper">
+        <button type="button" class="stepper-btn" data-accion="restar" aria-label="Restar">−</button>
+        <input type="number" min="0" step="any" inputmode="decimal" data-id="${p.id}"
+          class="input-cant cant-pedido stepper-input" value="${cantidadActual}">
+        <button type="button" class="stepper-btn" data-accion="sumar" aria-label="Sumar">+</button>
+      </div>`;
+
+    const input = card.querySelector(".cant-pedido");
+    const sincronizar = () => {
+      const valor = Number(input.value) || 0;
+      cantidadesPedido.set(p.id, valor);
+      card.classList.toggle("con-cantidad", valor > 0);
+      renderResumenSeleccion();
+    };
+
+    card.querySelector('[data-accion="restar"]').addEventListener("click", () => {
+      input.value = Math.max(0, (Number(input.value) || 0) - 1);
+      sincronizar();
+    });
+    card.querySelector('[data-accion="sumar"]').addEventListener("click", () => {
+      input.value = (Number(input.value) || 0) + 1;
+      sincronizar();
+    });
+    input.addEventListener("input", sincronizar);
+
+    cont.appendChild(card);
+  });
+
+  renderResumenSeleccion();
+}
+
+// Productos con cantidad cargada, incluso los que el buscador dejó ocultos
+// en este momento — así la sucursal no pierde de vista lo que ya sumó en
+// una búsqueda anterior y termina enviando un pedido incompleto sin darse
+// cuenta.
+function renderResumenSeleccion(){
+  let total = 0;
+  cantidadesPedido.forEach(cantidad => { if (cantidad > 0) total++; });
+  document.getElementById("resumen-seleccion").textContent = total > 0
+    ? `${total} producto${total === 1 ? "" : "s"} seleccionado${total === 1 ? "" : "s"}`
+    : "";
+}
+
+document.getElementById("buscador-productos").addEventListener("input", (e) => {
+  terminoBusquedaProductos = e.target.value;
+  renderCatalogo();
+});
+
+document.getElementById("btn-enviar-pedido").addEventListener("click", async (e) => {
+  const items = [];
+  cantidadesPedido.forEach((cantidad, productoId) => {
+    if (cantidad > 0) {
+      const prod = catalogo.find(p => p.id === productoId);
+      if (prod) items.push({
+        productoId: prod.id, nombre: prod.nombre, unidad: prod.unidad,
+        cantidadPedida: cantidad, cantidadEnviada: null, notaItem: ""
+      });
+    }
+  });
+  if (items.length === 0) {
+    await alertaBonita("Cargá al menos un producto con cantidad mayor a 0.", { tipo: "advertencia" });
+    return;
+  }
+  conCarga(e.currentTarget, async () => {
+    const numero = await siguienteNumeroPedido();
+    await addDoc(collection(db, "pedidos"), {
+      numero,
+      sucursalId: usuario.uid,
+      sucursalNombre: usuario.nombre || "Sucursal",
+      estado: "pendiente",
+      items,
+      historial: [],
+      notaCentral: "",
+      notaSucursalPedido: document.getElementById("nota-pedido").value.trim(),
+      notaSucursal: "",
+      creadoEn: serverTimestamp(),
+      actualizadoEn: serverTimestamp(),
+    });
+    cantidadesPedido.clear();
+    terminoBusquedaProductos = "";
+    document.getElementById("buscador-productos").value = "";
+    renderCatalogo();
+    document.getElementById("nota-pedido").value = "";
+    document.getElementById("aviso-borrador-recuperado").classList.add("hidden");
+    // El pedido ya quedó guardado como pedido de verdad: si había un borrador
+    // de esto mismo, ya no tiene sentido — lo borramos para no confundir con
+    // uno viejo en el próximo inicio de sesión.
+    deleteDoc(doc(db, "borradores", usuario.uid)).catch((err) => {
+      console.error("Error borrando el borrador tras enviar el pedido:", err);
+    });
+    const conf = document.getElementById("confirmacion-envio");
+    conf.classList.remove("hidden");
+    setTimeout(() => conf.classList.add("hidden"), 4000);
+  }, "Enviando…");
+});
+
+// Guarda lo cargado hasta ahora sin enviarlo a central, para retomarlo
+// después desde cualquier dispositivo con la misma cuenta.
+document.getElementById("btn-guardar-borrador").addEventListener("click", (e) => {
+  const items = [];
+  cantidadesPedido.forEach((cantidad, productoId) => {
+    if (cantidad > 0) items.push({ productoId, cantidad });
+  });
+  const nota = document.getElementById("nota-pedido").value.trim();
+  if (items.length === 0 && !nota) {
+    alertaBonita("Todavía no cargaste nada para guardar.", { tipo: "advertencia" });
+    return;
+  }
+  conCarga(e.currentTarget, async () => {
+    await setDoc(doc(db, "borradores", usuario.uid), {
+      items,
+      nota,
+      actualizadoEn: serverTimestamp(),
+    });
+    document.getElementById("aviso-borrador-recuperado").classList.add("hidden");
+    const conf = document.getElementById("confirmacion-borrador");
+    conf.classList.remove("hidden");
+    setTimeout(() => conf.classList.add("hidden"), 4000);
+  }, "Guardando…");
+});
+
+// ================= MIS PEDIDOS =================
+function badgeHtml(estado){
+  const mapa = {
+    pendiente: ["badge-pendiente", "Pendiente"],
+    en_preparacion: ["badge-preparacion", "En preparación"],
+    enviado: ["badge-enviado", "Enviado — a confirmar"],
+    recibido: ["badge-recibido", "Recibido"],
+    cancelado: ["badge-cancelado", "Cancelado"],
+    rechazado: ["badge-rechazado", "Rechazado por central"],
+  };
+  const [clase, texto] = mapa[estado] || ["badge-pendiente", estado];
+  return `<span class="badge ${clase}">${texto}</span>`;
+}
+
+function tieneDiferencias(pedido){
+  return (pedido.items || []).some(it => it.cantidadEnviada != null && Number(it.cantidadEnviada) !== Number(it.cantidadPedida));
+}
+
+function fechaLegible(ts){
+  if (!ts || !ts.toDate) return "";
+  return ts.toDate().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+}
+
+function fechaLegibleMs(ms){
+  if (!ms) return "";
+  return new Date(ms).toLocaleString("es-AR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+}
+
+const textoEstado = {
+  pendiente: "Pedido creado",
+  en_preparacion: "Pasó a preparación",
+  enviado: "Despachado desde central",
+  recibido: "Confirmado por la sucursal",
+  cancelado: "Cancelado por la sucursal",
+  rechazado: "Rechazado por central",
+};
+
+function renderHistorial(pedido){
+  const ul = document.getElementById("modal-historial");
+  const eventos = [];
+  eventos.push({ estado: "pendiente", en: pedido.creadoEn?.toMillis?.() ?? null, por: pedido.sucursalNombre, esServidor: true });
+  (pedido.historial || []).forEach(h => eventos.push(h));
+
+  ul.innerHTML = eventos.map(ev => {
+    const fecha = ev.esServidor ? fechaLegible(pedido.creadoEn) : fechaLegibleMs(ev.en);
+    const nota = ev.nota ? ` — "${ev.nota}"` : "";
+    return `<li>• ${textoEstado[ev.estado] || ev.estado} — ${ev.por || ""} · ${fecha}${nota}</li>`;
+  }).join("");
+}
+
+function renderMisPedidos(){
+  const cont = document.getElementById("lista-mis-pedidos");
+  cont.innerHTML = "";
+  document.getElementById("mios-vacio").classList.toggle("hidden", misPedidos.length > 0);
+  misPedidos.forEach(p => {
+    const row = document.createElement("div");
+    row.className = `ticket px-4 py-3 flex items-center justify-between cursor-pointer ${p.estado}`;
+    row.innerHTML = `
+      <div class="flex items-center gap-4">
+        <div class="num-mono text-lg font-700">#${p.numero ?? "—"}</div>
+        <div class="text-xs" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos</div>
+      </div>
+      <div class="flex items-center gap-2">
+        ${tieneDiferencias(p) ? '<span class="badge badge-diferencia">Diferencia</span>' : ''}
+        ${badgeHtml(p.estado)}
+      </div>`;
+    row.addEventListener("click", () => abrirModal(p));
+    cont.appendChild(row);
+  });
+}
+
+let pedidoActivo = null;
+
+function abrirModal(pedido){
+  pedidoActivo = pedido;
+  document.getElementById("modal-numero").textContent = "#" + (pedido.numero ?? "—");
+  document.getElementById("modal-fecha").textContent = fechaLegible(pedido.creadoEn);
+  document.getElementById("modal-badge").innerHTML = badgeHtml(pedido.estado);
+
+  const notaPropiaWrap = document.getElementById("modal-nota-propia-wrap");
+  if (pedido.notaSucursalPedido) {
+    notaPropiaWrap.classList.remove("hidden");
+    document.getElementById("modal-nota-propia").textContent = pedido.notaSucursalPedido;
+  } else {
+    notaPropiaWrap.classList.add("hidden");
+  }
+
+  const notaWrap = document.getElementById("modal-nota-central-wrap");
+  if (pedido.notaCentral) {
+    notaWrap.classList.remove("hidden");
+    document.getElementById("modal-nota-central").textContent = pedido.notaCentral;
+  } else {
+    notaWrap.classList.add("hidden");
+  }
+
+  const tbody = document.getElementById("modal-items");
+  tbody.innerHTML = "";
+  (pedido.items || []).forEach(it => {
+    const difiere = it.cantidadEnviada != null && Number(it.cantidadEnviada) !== Number(it.cantidadPedida);
+    const tr = document.createElement("tr");
+    tr.className = "border-b";
+    tr.style.borderColor = "var(--linea)";
+    tr.innerHTML = `
+      <td class="py-2">${it.nombre} <span class="text-xs" style="color:var(--tinta-suave)">(${etiquetaUnidad(it.unidad)})</span></td>
+      <td class="py-2 text-right num-mono">${it.cantidadPedida}</td>
+      <td class="py-2 text-right num-mono ${difiere ? 'font-700' : ''}" style="${difiere ? 'color:var(--rojo)' : ''}">${it.cantidadEnviada ?? "—"}</td>
+      <td class="py-2 text-xs">${it.notaItem || ""}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("bloque-confirmar").classList.toggle("hidden", pedido.estado !== "enviado");
+  document.getElementById("modal-nota-sucursal").value = pedido.notaSucursal || "";
+  // Cancelar solo tiene sentido mientras el pedido sigue "pendiente": una vez
+  // que central lo marca en preparación, ya está gastando mercadería/tiempo
+  // en armarlo, así que a partir de ahí la sucursal ya no puede bajarlo sola.
+  document.getElementById("bloque-cancelar").classList.toggle("hidden", pedido.estado !== "pendiente");
+
+  renderHistorial(pedido);
+  document.getElementById("modal").classList.remove("hidden");
+  document.getElementById("modal").classList.add("flex");
+}
+
+document.getElementById("modal-cerrar").addEventListener("click", () => {
+  document.getElementById("modal").classList.add("hidden");
+  document.getElementById("modal").classList.remove("flex");
+});
+
+document.getElementById("btn-confirmar-recepcion").addEventListener("click", (e) => {
+  const notaSucursal = document.getElementById("modal-nota-sucursal").value.trim();
+  conCarga(e.currentTarget, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+      estado: "recibido",
+      notaSucursal,
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "recibido", en: Date.now(), por: usuario.nombre, nota: notaSucursal || "" }),
+    });
+    document.getElementById("modal").classList.add("hidden");
+  }, "Confirmando…");
+});
+
+document.getElementById("btn-cancelar-pedido").addEventListener("click", async (e) => {
+  const confirmado = await confirmarBonito(
+    `¿Cancelar el pedido #${pedidoActivo.numero ?? ""}? Esta acción no se puede deshacer.`,
+    { tipo: "peligro", textoConfirmar: "Cancelar pedido", textoCancelar: "Volver" }
+  );
+  if (!confirmado) return;
+  conCarga(e.currentTarget, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+      estado: "cancelado",
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "cancelado", en: Date.now(), por: usuario.nombre }),
+    });
+    document.getElementById("modal").classList.add("hidden");
+  }, "Cancelando…");
+});
+
+// ---------- Listeners ----------
+function iniciarListeners(){
+  // Nota: ordenamos acá en JS (no con orderBy en la consulta) para no depender de
+  // un índice compuesto de Firestore que hay que crear a mano en la consola.
+  onSnapshot(
+    query(collection(db, "productos"), where("activo", "==", true)),
+    (snap) => {
+      catalogo = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      catalogo.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      renderCatalogo();
+    },
+    (err) => console.error("Error leyendo catálogo de productos:", err)
+  );
+  onSnapshot(
+    query(collection(db, "pedidos"), where("sucursalId", "==", usuario.uid)),
+    (snap) => {
+      misPedidos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      misPedidos.sort((a, b) => (b.creadoEn?.toMillis?.() || 0) - (a.creadoEn?.toMillis?.() || 0));
+      renderMisPedidos();
+      if (pedidoActivo) {
+        const actualizado = misPedidos.find(p => p.id === pedidoActivo.id);
+        if (actualizado) {
+          pedidoActivo = actualizado;
+          // Si la sucursal tiene el modal de este pedido abierto y central le
+          // cambia el estado (o cualquier otro dato) mientras tanto, se vuelve a
+          // pintar el modal con lo nuevo — si no, quedaba mostrando el estado
+          // viejo hasta que lo cerraran y abrieran de nuevo.
+          const modalEl = document.getElementById("modal");
+          if (!modalEl.classList.contains("hidden")) {
+            // "Nota al confirmar" es un borrador que todavía no se guardó en
+            // Firestore (recién se manda al tocar "Confirmar recepción"): si no
+            // se preserva acá, un cambio de central mientras la sucursal está
+            // escribiendo se lo borraría de la pantalla sin avisar.
+            const notaEnCurso = document.getElementById("modal-nota-sucursal").value;
+            abrirModal(actualizado);
+            if (notaEnCurso) document.getElementById("modal-nota-sucursal").value = notaEnCurso;
+          }
+        }
+      }
+    },
+    (err) => console.error("Error leyendo mis pedidos:", err)
+  );
+}
+</script>
+</body>
+</html>

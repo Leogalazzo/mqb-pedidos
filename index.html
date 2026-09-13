@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingresar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body class="min-h-screen flex items-center justify-center px-4">
+
+  <div class="w-full max-w-sm">
+    <div class="mb-8 text-center">
+      <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="MQB" class="h-16 w-auto mx-auto">
+      <div class="text-sm mt-1" style="color:var(--tinta-suave)">Sistema de pedidos entre sucursales</div>
+    </div>
+
+    <form id="form-login" class="ticket p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Usuario</label>
+        <input id="usuario" type="text" required autocomplete="username"
+          class="w-full border rounded px-3 py-2 outline-none"
+          style="border-color:var(--linea)">
+      </div>
+      <div>
+        <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Contraseña</label>
+        <input id="password" type="password" required autocomplete="current-password"
+          class="w-full border rounded px-3 py-2 outline-none"
+          style="border-color:var(--linea)">
+      </div>
+      <p id="error" class="text-sm hidden" style="color:var(--rojo)"></p>
+      <button type="submit"
+        class="w-full py-2.5 rounded font-600 text-white transition"
+        style="background:var(--ambar-oscuro)">
+        Ingresar
+      </button>
+    </form>
+
+    <p class="text-xs text-center mt-6" style="color:var(--tinta-suave)">
+     Ingresá con el usuario y la contraseña que te dieron.
+    </p>
+  </div>
+
+<script type="module">
+import { auth, onAuthStateChanged, signInWithEmailAndPassword, obtenerRolPorCorreo, emailDesdeUsuario }
+  from "./firebase-config.js";
+import { conCarga } from "./ui.js";
+
+const form = document.getElementById("form-login");
+const btnIngresar = form.querySelector('button[type="submit"]');
+const errorEl = document.getElementById("error");
+
+function mostrarError(msg){
+  errorEl.textContent = msg;
+  errorEl.classList.remove("hidden");
+}
+
+function redirigirSegunRol(user){
+  const rol = obtenerRolPorCorreo(user.email);
+  if (rol === "central") {
+    location.href = "central.html";
+  } else {
+    location.href = "sucursal.html";
+  }
+}
+
+// Si ya hay sesión iniciada, saltar directo a su pantalla.
+onAuthStateChanged(auth, (user) => {
+  if (user) redirigirSegunRol(user);
+});
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  errorEl.classList.add("hidden");
+  const email = emailDesdeUsuario(document.getElementById("usuario").value);
+  const password = document.getElementById("password").value;
+  conCarga(btnIngresar, async () => {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    redirigirSegunRol(cred.user);
+  }, "Ingresando…", false).catch(() => {
+    mostrarError("Usuario o contraseña incorrectos.");
+  });
+});
+</script>
+</body>
+</html>

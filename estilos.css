@@ -1,0 +1,679 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Oswald:wght@500;600;700&display=swap');
+
+/* ============================================================
+   MQB Pedidos — tema "línea de expedición".
+   La referencia sigue siendo la cocina, pero de la barra de
+   expedición: metal azulado bajo luz fría, y las comandas de
+   cada pedido son las fichas que cuelgan del carril de pedidos,
+   iluminadas por el punto cálido de la lámpara de pase. El dorado
+   es esa luz puntual (nunca todo el fondo); el resto se apoya en
+   un azul-carbón sobrio para que el dorado siga leyéndose como
+   acento y no como base.
+   ============================================================ */
+:root{
+  /* Fondo y superficies */
+  --papel: #10131A;          /* fondo de página: acero azulado, no marrón */
+  --papel-alto: #1B2029;     /* tickets, cards, modal */
+  --bg-elevado: #141822;     /* sidebar */
+  --superficie-hover: #232937;
+
+  /* Texto */
+  --tinta: #F3F0E8;          /* texto principal, blanco cálido de papel */
+  --tinta-suave: #939CAA;    /* texto secundario, gris azulado (no caqui) */
+  --tinta-tenue: #565E6E;    /* placeholders, texto terciario */
+
+  /* Líneas */
+  --linea: #262C39;          /* bordes, divisores */
+  --linea-fuerte: #38404F;   /* hover de bordes */
+
+  /* Acentos */
+  --ambar: #F4A93B;          /* luz de la lámpara de pase */
+  --ambar-oscuro: #C97C1B;
+  --ambar-suave: #2E2413;
+  --verde: #2FD498;
+  --verde-suave: #0E2E24;
+  --rojo: #F0654C;
+  --rojo-suave: #34201B;
+  --violeta: #A48CF2;
+  --violeta-suave: #23203B;
+  --azul: #56B4E9;
+  --azul-suave: #122732;
+
+  --radio-tarjeta: 12px;
+  --sombra-tarjeta: 0 1px 2px rgba(0,0,0,.5), 0 14px 30px -16px rgba(0,0,0,.7);
+  --sombra-tarjeta-hover: 0 1px 2px rgba(0,0,0,.5), 0 20px 38px -14px rgba(0,0,0,.75);
+  --sombra-modal: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.04);
+}
+
+html{ color-scheme: dark; }
+
+html,body{
+  color:var(--tinta);
+  font-family:'Inter',sans-serif;
+}
+
+/* Fondo de página: el resplandor cálido de la lámpara de pase,
+   puntual arriba a la izquierda, sobre acero azulado oscuro. */
+body{
+  background:
+    radial-gradient(900px 420px at 14% -6%, rgba(244,169,59,.09), transparent 55%),
+    radial-gradient(700px 500px at 100% 0%, rgba(86,180,233,.04), transparent 60%),
+    var(--papel);
+  background-attachment: fixed;
+}
+
+.font-display{ font-family:'Space Grotesk',sans-serif; letter-spacing:-.01em; }
+.num-mono{ font-family:'Space Grotesk',sans-serif; font-variant-numeric: tabular-nums; }
+
+/* Sidebar: un tono apenas distinto del fondo, con un filo sutil
+   para separar la navegación del contenido. */
+aside{ background:var(--bg-elevado); }
+
+/* Logo del sidebar: centrado y con más presencia que un ícono de
+   navegación — es la marca, va arriba de todo y bien visible. */
+.sidebar-logo{
+  display:flex; justify-content:center;
+  padding:.25rem 0 1rem;
+}
+.sidebar-logo img{
+  height:76px; width:auto; display:block;
+}
+
+/* --- Navegación del carril lateral ---
+   Botones más grandes, con ícono + texto, y estado activo resuelto con
+   un panel de color sólido (mismo lenguaje que .filtro-btn.activo y
+   .historial-sucursal-btn.activo) en vez de la barrita lateral angosta
+   que tenía antes — más fácil de detectar de un vistazo y más "moderno". */
+.tab-btn{
+  display:flex;
+  align-items:center;
+  gap:.8rem;
+  color:var(--tinta-suave);
+  background:transparent;
+  transition: background-color .15s, color .15s;
+}
+.tab-btn:hover{ background:var(--superficie-hover); color:var(--tinta); }
+.tab-btn.activo{
+  background:var(--ambar-suave);
+  color:var(--ambar);
+}
+.tab-btn-icono{
+  width:1.15rem; height:1.15rem; flex-shrink:0;
+  opacity:.75;
+  transition: opacity .15s;
+}
+.tab-btn:hover .tab-btn-icono,
+.tab-btn.activo .tab-btn-icono{ opacity:1; }
+
+/* Enlace de "Cerrar sesión" al pie del sidebar, con el mismo ícono+texto
+   que la navegación de arriba pero en un registro más discreto. */
+.link-pie-sidebar{
+  display:inline-flex; align-items:center; gap:.4rem;
+  transition: color .15s;
+}
+.link-pie-sidebar:hover{ color:var(--tinta); }
+.link-pie-sidebar svg{ width:.95rem; height:.95rem; flex-shrink:0; }
+
+/* --- Controles de formulario: fondo oscuro consistente ---
+   Sin esto, inputs/selects/textareas quedan con el blanco por
+   defecto del navegador y rompen toda la paleta. */
+input, select, textarea{
+  background:var(--papel-alto);
+  color:var(--tinta);
+  border-color:var(--linea);
+}
+input::placeholder, textarea::placeholder{ color:var(--tinta-tenue); }
+input:focus, select:focus, textarea:focus{
+  outline:none;
+  border-color:var(--ambar);
+  box-shadow:0 0 0 3px rgba(244,169,59,.18);
+}
+select{ color-scheme: dark; }
+
+/* Foco visible por teclado en cualquier elemento interactivo */
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
+  outline:2px solid var(--ambar);
+  outline-offset:2px;
+}
+
+button{ transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s, transform .05s; cursor:pointer; }
+button:active{ transform: translateY(1px); }
+
+/* Barra de desplazamiento discreta, a tono con la paleta */
+::-webkit-scrollbar{ width:10px; height:10px; }
+::-webkit-scrollbar-track{ background:transparent; }
+::-webkit-scrollbar-thumb{ background:var(--linea); border-radius:999px; }
+::-webkit-scrollbar-thumb:hover{ background:var(--linea-fuerte); }
+
+/* Ticket: la ficha que cuelga del carril de pedidos. El borde
+   izquierdo punteado imita la perforación de un talonario de
+   comandas; arriba, una fila de muescas simula el corte del
+   papel al arrancarlo. La sombra le da profundidad real, como
+   si estuviera un poco despegada del fondo. */
+.ticket{
+  position:relative;
+  background:var(--papel-alto);
+  border:1px solid var(--linea);
+  border-left:4px dashed var(--linea);
+  border-radius:4px;
+  box-shadow:var(--sombra-tarjeta);
+  transition: border-color .15s, box-shadow .15s, transform .12s;
+}
+.ticket::before{
+  content:"";
+  position:absolute; top:-1px; left:10px; right:10px; height:6px;
+  background-image: radial-gradient(circle at 7px 0, var(--papel) 3.5px, transparent 3.6px);
+  background-size:14px 6px;
+  background-repeat:repeat-x;
+  pointer-events:none;
+}
+.ticket:hover{ border-left-color:var(--ambar); box-shadow:var(--sombra-tarjeta-hover); transform: translateY(-2px); }
+.ticket.activo{ border-left-color:var(--ambar); border-left-style:solid; }
+/* Pedidos que ya no siguen su curso normal (cancelado por la sucursal o
+   rechazado por central): se atenúan para diferenciarlos de un vistazo
+   de los que todavía están en trámite. */
+.ticket.cancelado, .ticket.rechazado{ opacity:.6; }
+
+/* --- Panel de filtros (Rango + Estado) ---
+   Antes eran dos filas de píldoras idénticas, sueltas sobre el fondo,
+   sin nada que las agrupe ni las distinga entre sí — se leían como un
+   solo bloque confuso. Este panel las contiene en una superficie propia,
+   con una etiqueta prolija por fila y una línea divisoria entre ambas,
+   así se entiende de un vistazo que son dos filtros distintos. */
+.filtros-panel{
+  background:var(--papel-alto);
+  border:1px solid var(--linea);
+  border-radius:var(--radio-tarjeta);
+  padding:.9rem 1.1rem;
+  margin-bottom:1.5rem;
+}
+.filtros-fila{
+  display:flex;
+  align-items:center;
+  gap:.7rem;
+  flex-wrap:wrap;
+}
+.filtros-fila + .filtros-fila{
+  margin-top:.85rem;
+  padding-top:.85rem;
+  border-top:1px solid var(--linea);
+}
+.filtros-etiqueta{
+  font-size:.68rem;
+  font-weight:600;
+  color:var(--tinta-tenue);
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  flex-shrink:0;
+  width:3.6rem;
+}
+
+/* Rango: son 4 opciones mutuamente excluyentes de un mismo eje (tiempo),
+   así que un control segmentado (un solo borde, sin separación entre
+   opciones) comunica mejor "elegí una de estas cuatro" que píldoras
+   sueltas — es el mismo patrón que un selector de pestañas de fecha. */
+.segmentado{
+  display:inline-flex;
+  border:1px solid var(--linea);
+  border-radius:999px;
+  overflow:hidden;
+  flex-wrap:wrap;
+}
+.segmentado .segmento-btn{
+  border:0;
+  border-radius:0;
+  background:transparent;
+  padding:.42rem 1rem;
+  font-size:.82rem;
+  font-weight:600;
+  color:var(--tinta-suave);
+}
+.segmentado .segmento-btn:not(:first-child){ border-left:1px solid var(--linea); }
+.segmentado .segmento-btn:hover{ background:var(--superficie-hover); color:var(--tinta); }
+.segmentado .segmento-btn.activo{
+  background:var(--ambar-suave);
+  color:var(--ambar);
+}
+
+/* Estado: son más opciones y no todas mutuamente excluyentes en el
+   mismo sentido visual, así que se quedan como chips — pero más
+   chicas y con menos separación que antes, para que se lean como un
+   grupo de filtros secundarios y no compitan con el segmentado de arriba. */
+.filtros-chips{
+  display:flex;
+  gap:.45rem;
+  flex-wrap:wrap;
+}
+.chip-btn{
+  padding:.4rem .85rem;
+  font-size:.78rem;
+  border-radius:999px;
+  border:1px solid var(--linea);
+}
+
+.filtro-btn{
+  color:var(--tinta-suave);
+  background:transparent;
+}
+.filtro-btn:hover{ border-color:var(--linea-fuerte); color:var(--tinta); }
+.filtro-btn.activo{
+  border-color:var(--ambar-oscuro);
+  background:var(--ambar-suave);
+  color:var(--ambar);
+}
+
+@media (max-width:640px){
+  .filtros-fila{ align-items:flex-start; }
+  .filtros-etiqueta{ width:auto; margin-bottom:.3rem; flex-basis:100%; }
+}
+
+/* Estado vacío: centrado, con ícono dentro de un halo tenue de la luz
+   ámbar del tema (la "lámpara de pase"), en vez de una simple línea de texto. */
+.estado-vacio{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:1rem; padding:3.5rem 1rem 3rem; text-align:center;
+}
+.estado-vacio-icono{
+  width:64px; height:64px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(circle, var(--ambar-suave) 0%, transparent 72%);
+}
+.estado-vacio-icono svg{ width:30px; height:30px; color:var(--tinta-tenue); }
+.estado-vacio-texto{ font-size:.9rem; font-weight:600; color:var(--tinta-suave); }
+
+.badge{
+  display:inline-flex; align-items:center; gap:.4rem;
+  font-size:.72rem; font-weight:600; letter-spacing:.01em;
+  padding:.22rem .65rem; border-radius:100px;
+}
+.badge::before{
+  content:""; width:.4rem; height:.4rem; border-radius:50%; background:currentColor; flex-shrink:0;
+}
+.badge-pendiente{ background:var(--ambar-suave); color:var(--ambar); }
+.badge-preparacion{ background:var(--violeta-suave); color:var(--violeta); }
+.badge-enviado{ background:var(--azul-suave); color:var(--azul); }
+.badge-recibido{ background:var(--verde-suave); color:var(--verde); }
+.badge-diferencia{ background:var(--rojo-suave); color:var(--rojo); }
+.badge-cancelado{ background:var(--linea); color:var(--tinta-suave); }
+.badge-rechazado{ background:var(--rojo-suave); color:var(--rojo); }
+
+/* Texto de ayuda contextual arriba de la tabla del modal de pedido: qué
+   corresponde hacer (o qué pasó) en la etapa actual del pedido. */
+.aviso-etapa{
+  background:var(--superficie-hover);
+  border:1px solid var(--linea);
+  border-radius:8px;
+  padding:.55rem .8rem;
+  font-size:.78rem;
+  line-height:1.4;
+  color:var(--tinta-suave);
+  margin-bottom:1.1rem;
+}
+
+.input-cant{
+  font-family:'Space Grotesk',sans-serif;
+  width:5.5rem; text-align:right;
+}
+
+/* --- Hoja de impresión (producción / remito / historial) ---
+   La impresión sigue siendo sobre papel blanco real: es un documento
+   físico que se lleva a la cocina o se abrocha al pedido, no una
+   pantalla, así que tiene su propia identidad visual de marca en vez
+   de la paleta oscura del resto del sitio. */
+.hoja-print{ display:none; }
+@media print{
+  :root{
+    --mqb-oscuro:#1A1A1A;
+    --mqb-acento:#D8531D;
+    --mqb-panel:#F5F1EA;
+    --mqb-borde:#E2DED4;
+    --mqb-gris-texto:#6B6660;
+  }
+
+  body *{ visibility:hidden; }
+  .hoja-print.activa, .hoja-print.activa *{ visibility:visible; }
+  .hoja-print.activa{
+    display:block; position:absolute; top:0; left:0; width:100%;
+    padding:1.4cm 1.2cm; background:#fff; color:var(--mqb-oscuro);
+    font-family:'Inter',sans-serif;
+  }
+  .no-imprimir{ display:none !important; }
+  .hi-fila-dif{ background:#FBEDE6; }
+  .hi-fila-dif td{ font-weight:700; color:var(--mqb-acento); }
+
+  /* Encabezado: logo + nombre de marca con eslogan, tipografía Oswald
+     (impactante) para que se lea como marca y no como texto de sistema. */
+  .hi-encabezado{
+    display:flex; align-items:center; gap:16px;
+    padding-bottom:14px; margin-bottom:16px;
+    border-bottom:3px solid var(--mqb-oscuro);
+  }
+  .hi-encabezado .hi-logo{ height:58px; width:auto; display:block; }
+  .hi-nombre{
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:23px;
+    text-transform:uppercase; letter-spacing:.02em; color:var(--mqb-oscuro);
+  }
+  .hi-subtitulo{
+    font-family:'Inter',sans-serif; font-size:10.5px; font-weight:700;
+    color:var(--mqb-acento); text-transform:uppercase; letter-spacing:.05em;
+    margin-top:3px;
+  }
+
+  /* Datos del documento en un panel propio, separados del branding. */
+  .hi-meta{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:14px;
+    margin-bottom:18px; padding:12px 16px;
+    background:var(--mqb-panel); border-radius:8px;
+  }
+  .hi-meta-item{ display:flex; flex-direction:column; gap:2px; }
+  .hi-meta-label{
+    font-size:9.5px; color:var(--mqb-gris-texto); font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em;
+  }
+  .hi-meta-valor{ font-size:14px; font-weight:700; color:var(--mqb-oscuro); }
+  .hi-meta-numero .hi-meta-valor{
+    font-family:'Oswald',sans-serif; font-size:22px; color:var(--mqb-acento);
+  }
+
+  /* Tabla con más aire, encabezado en color sólido y líneas sutiles. */
+  .hi-tabla{ width:100%; border-collapse:collapse; font-size:13px; }
+  .hi-tabla thead th{
+    text-align:left; padding:9px 10px;
+    background:var(--mqb-oscuro); color:#fff;
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  }
+  .hi-tabla thead th:first-child{ border-radius:6px 0 0 6px; }
+  .hi-tabla thead th:last-child{ border-radius:0 6px 6px 0; }
+  .hi-tabla tbody td{ padding:10px; border-bottom:1px solid var(--mqb-borde); }
+  .hi-tabla .hi-col-check{ width:24px; text-align:center; font-size:15px; color:#bbb; }
+  .hi-tabla .hi-col-num{ text-align:right; font-weight:700; font-family:'Oswald',sans-serif; }
+  .hi-tabla thead .hi-col-num{ text-align:right; }
+  .hi-categoria td{
+    padding-top:16px; padding-bottom:6px; font-weight:700; font-size:11.5px;
+    text-transform:uppercase; letter-spacing:.03em;
+    border-bottom:2px solid var(--mqb-oscuro); color:var(--mqb-oscuro);
+  }
+
+  /* Resumen final: texto simple + badge de estado cuando corresponde. */
+  .hi-resumen{
+    margin-top:10px; display:flex; justify-content:flex-end; align-items:center; gap:8px;
+  }
+  .hi-resumen-texto{ font-size:11px; color:var(--mqb-gris-texto); font-weight:600; }
+  .hi-badge{
+    display:inline-flex; align-items:center; gap:5px;
+    padding:4px 11px; border-radius:999px;
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
+  }
+  .hi-badge-ok{ background:#E3F3E8; color:#1E7A42; }
+  .hi-badge-dif{ background:#FBE7E0; color:var(--mqb-acento); }
+
+  .hi-nota{
+    margin-top:20px; padding:12px 14px; background:#FCFBF8;
+    border:1px solid var(--mqb-borde); border-left:4px solid var(--mqb-acento);
+    border-radius:4px; font-size:12px;
+  }
+  .hi-nota-label{
+    font-weight:700; margin-right:8px; color:var(--mqb-oscuro);
+    text-transform:uppercase; font-size:10px; letter-spacing:.03em;
+  }
+
+  /* Zona de firmas: espacio en blanco para firmar + línea punteada + etiqueta. */
+  .hi-firma{ margin-top:40px; display:grid; grid-template-columns:1fr 1fr; gap:32px; }
+  .hi-firma-campo{ display:flex; flex-direction:column; }
+  .hi-firma-linea{ height:46px; border-bottom:2px dashed var(--mqb-gris-texto); }
+  .hi-firma-etiqueta{
+    padding-top:8px; font-size:11px; font-weight:700; color:var(--mqb-oscuro);
+    text-transform:uppercase; letter-spacing:.03em; text-align:center;
+  }
+}
+
+/* --- Historial por sucursal: selector superior + panel de detalle debajo ---
+   Antes reutilizaba el estilo "ticket" (pensado para comandas de
+   pedidos), lo que se veía raro como botón de navegación angosto.
+   Este es un selector de lista limpio, con el mismo lenguaje de
+   "activo" que el resto del sitio (acento dorado). Las tarjetas de
+   sucursal van una al lado de la otra (fila con wrap); el detalle de
+   la elegida aparece debajo, ocupando todo el ancho. */
+.historial-sucursal-btn{
+  display:flex; flex-direction:column; align-items:flex-start; text-align:left;
+  width:auto; min-width:150px;
+  background:var(--papel-alto);
+  border:1px solid var(--linea);
+  border-radius:var(--radio-tarjeta);
+  padding:.8rem 1rem;
+  transition: border-color .15s, background-color .15s;
+}
+.historial-sucursal-btn:hover{ border-color:var(--linea-fuerte); background:var(--superficie-hover); }
+.historial-sucursal-btn.activo{
+  border-color:var(--ambar-oscuro);
+  background:var(--ambar-suave);
+}
+.historial-sucursal-nombre{ font-weight:600; font-size:.88rem; }
+.historial-sucursal-btn.activo .historial-sucursal-nombre{ color:var(--ambar); }
+.historial-sucursal-cantidad{ font-size:.74rem; color:var(--tinta-suave); margin-top:.15rem; }
+
+/* Panel de detalle: un contenedor propio (no texto suelto) para que el
+   estado vacío tenga la misma jerarquía visual que la lista de al lado. */
+.historial-detalle-vacio{
+  border:1px dashed var(--linea);
+  border-radius:var(--radio-tarjeta);
+  padding:3rem 1.5rem;
+  text-align:center;
+  color:var(--tinta-suave);
+  font-size:.88rem;
+}
+
+/* Mismo tamaño y lugar que el estado vacío, pero con borde sólido + spinner:
+   así se distingue de un vistazo "todavía no elegiste nada" de "esto ya está
+   cargando", en vez de mostrar las dos cosas con el mismo cartel de texto. */
+.historial-detalle-cargando{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.6rem;
+  border:1px solid var(--linea);
+  border-radius:var(--radio-tarjeta);
+  padding:3rem 1.5rem;
+  text-align:center;
+  color:var(--tinta-suave);
+  font-size:.88rem;
+}
+
+/* --- Cards de producto (armar pedido / catálogo) --- */
+.producto-card{
+  background:var(--papel-alto);
+  border:1px solid var(--linea);
+  border-radius:var(--radio-tarjeta);
+  padding:.95rem;
+  display:flex;
+  flex-direction:column;
+  gap:.7rem;
+  box-shadow:var(--sombra-tarjeta);
+  transition:border-color .15s, box-shadow .15s, transform .12s;
+}
+.producto-card:hover{ border-color:var(--linea-fuerte); box-shadow:var(--sombra-tarjeta-hover); transform:translateY(-1px); }
+.producto-card.con-cantidad{
+  border-color:var(--ambar);
+  box-shadow:0 0 0 1px var(--ambar), var(--sombra-tarjeta);
+}
+.producto-card-nombre{ font-weight:600; font-size:.92rem; line-height:1.25; }
+.producto-card-meta{
+  font-size:.7rem; color:var(--tinta-suave); text-transform:capitalize;
+  letter-spacing:.01em;
+}
+
+.stepper{
+  margin-top:auto;
+  display:flex; align-items:stretch;
+  border:1px solid var(--linea); border-radius:8px; overflow:hidden;
+}
+.stepper-btn{
+  width:2.3rem; border:0; background:var(--papel);
+  font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.05rem;
+  color:var(--tinta-suave); cursor:pointer; line-height:1;
+}
+.stepper-btn:hover{ background:var(--linea); color:var(--tinta); }
+.stepper-btn:active{ background:var(--ambar); color:#1A1408; }
+.stepper-input{
+  flex:1; min-width:0; text-align:center; border:0;
+  border-left:1px solid var(--linea); border-right:1px solid var(--linea);
+  background:var(--papel-alto); color:var(--tinta);
+  font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:.95rem;
+  -moz-appearance:textfield;
+}
+.stepper-input:focus{ box-shadow:none; }
+.stepper-input::-webkit-outer-spin-button,
+.stepper-input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+
+/* --- Card de producto en el catálogo de central (con switch activo/inactivo) --- */
+.producto-card.inactivo{ opacity:.55; box-shadow:none; }
+
+.producto-card-toggle{
+  margin-top:auto;
+  display:flex; align-items:center; justify-content:space-between;
+  font-size:.72rem; font-weight:600; color:var(--tinta-suave);
+  cursor:pointer;
+}
+
+/* Fila de acciones (Editar/Eliminar en modo vista, Guardar/Cancelar en edición) */
+.producto-card-acciones{
+  display:flex; align-items:center; justify-content:space-between;
+  padding-top:.6rem; margin-top:.15rem; border-top:1px solid var(--linea);
+  font-size:.72rem; font-weight:600;
+}
+.producto-card-acciones button{
+  background:none; border:0; padding:0; color:var(--tinta-suave);
+}
+.producto-card-acciones button:hover{ color:var(--tinta); text-decoration:underline; }
+.producto-card-acciones .btn-eliminar-producto{ color:var(--rojo); }
+.producto-card-acciones .btn-eliminar-producto:hover{ color:#F79E8C; }
+.producto-card-acciones .btn-guardar-producto{ color:var(--verde); }
+.producto-card-acciones .btn-guardar-producto:hover{ color:#7FF0C7; }
+
+.btn-guardar-sucursal:hover{ color:#7FF0C7 !important; }
+.btn-eliminar-sucursal:hover{ color:#F79E8C !important; }
+.producto-card-acciones button:disabled{ opacity:.5; cursor:default; text-decoration:none; }
+
+/* Botón de acción destructiva "en texto" (cancelar/rechazar pedido):
+   mismo patrón visual que los botones de Editar/Eliminar del catálogo,
+   pero reutilizable fuera de esa fila de acciones. */
+.btn-texto-peligro{
+  background:none; border:0; padding:0; font-weight:600; font-size:.8rem;
+  color:var(--rojo); cursor:pointer;
+}
+.btn-texto-peligro:hover{ color:#F79E8C; text-decoration:underline; }
+.btn-texto-peligro:disabled{ opacity:.5; cursor:default; text-decoration:none; }
+
+.switch{ position:relative; display:inline-block; width:2.3rem; height:1.3rem; flex-shrink:0; }
+.switch input{ position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; }
+.switch-track{
+  position:absolute; inset:0; background:var(--linea); border-radius:999px;
+  transition:background .15s;
+}
+.switch-track::before{
+  content:""; position:absolute; width:1.02rem; height:1.02rem; left:.14rem; top:.14rem;
+  background:#F3F0E8; border-radius:50%; transition:transform .15s; box-shadow:0 1px 2px rgba(0,0,0,.4);
+}
+.switch input:checked ~ .switch-track{ background:var(--verde); }
+.switch input:checked ~ .switch-track::before{ transform:translateX(1rem); background:#0B1712; }
+.switch input:disabled ~ .switch-track{ opacity:.5; cursor:progress; }
+
+@keyframes girar{ to{ transform:rotate(360deg); } }
+
+.spinner{
+  display:inline-block; width:14px; height:14px; flex-shrink:0;
+  border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%;
+  animation:girar .7s linear infinite; vertical-align:-2px;
+}
+.spinner-oscuro{ border-color:rgba(243,240,232,.18); border-top-color:var(--tinta-suave); }
+
+.btn-cargando{ opacity:.75; cursor:progress !important; }
+.btn-cargando *{ pointer-events:none; }
+
+.btn-cargando-contenido{ display:inline-flex; align-items:center; gap:.5rem; }
+
+/* Placeholder mientras se espera la primera respuesta de Firestore */
+.skeleton-fila{
+  background:var(--papel-alto);
+  border:1px solid var(--linea);
+  border-radius:4px;
+  padding:.9rem 1rem;
+  display:flex; align-items:center; gap:.6rem;
+  color:var(--tinta-suave); font-size:.85rem;
+  grid-column: 1 / -1;
+}
+
+/* --- Modal de aviso/confirmación (reemplazo de alert()/confirm()) ---
+   Mismo lenguaje visual que el resto del sitio: superficie papel-alto,
+   sombra de modal, acento dorado para la acción principal y rojo
+   reservado para acciones destructivas (rechazar, eliminar, cancelar). */
+.aviso-overlay{
+  position:fixed; inset:0; z-index:100;
+  background:rgba(0,0,0,.65);
+  display:none;
+  align-items:center; justify-content:center;
+  padding:1rem;
+}
+.aviso-overlay.flex{ display:flex; }
+.aviso-overlay.hidden{ display:none; }
+body.aviso-abierto{ overflow:hidden; }
+
+.aviso-modal{
+  display:flex; gap:1rem; align-items:flex-start;
+  max-width:26rem; width:100%;
+  background:var(--papel-alto);
+  border:1px solid var(--linea);
+  border-radius:var(--radio-tarjeta);
+  box-shadow:var(--sombra-modal);
+  padding:1.5rem;
+  animation: aviso-aparecer .16s ease-out;
+}
+@keyframes aviso-aparecer{
+  from{ opacity:0; transform:translateY(6px) scale(.98); }
+  to{ opacity:1; transform:translateY(0) scale(1); }
+}
+
+.aviso-icono{
+  flex-shrink:0;
+  width:2.5rem; height:2.5rem;
+  border-radius:999px;
+  display:flex; align-items:center; justify-content:center;
+}
+.aviso-icono svg{ width:1.35rem; height:1.35rem; }
+.aviso-icono-info{ background:var(--azul-suave); color:var(--azul); }
+.aviso-icono-exito{ background:var(--verde-suave); color:var(--verde); }
+.aviso-icono-advertencia{ background:var(--ambar-suave); color:var(--ambar); }
+.aviso-icono-peligro, .aviso-icono-error{ background:var(--rojo-suave); color:var(--rojo); }
+
+.aviso-cuerpo{ min-width:0; flex:1; }
+.aviso-titulo{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.05rem; margin-bottom:.35rem; }
+.aviso-mensaje{ font-size:.88rem; line-height:1.5; color:var(--tinta-suave); }
+
+.aviso-acciones{ display:flex; justify-content:flex-end; gap:.6rem; margin-top:1.3rem; }
+.aviso-btn{
+  padding:.55rem 1.1rem; border-radius:8px; font-weight:600; font-size:.85rem;
+  border:1px solid transparent;
+}
+.aviso-btn-secundario{
+  border-color:var(--linea); color:var(--tinta-suave); background:transparent;
+}
+.aviso-btn-secundario:hover{ border-color:var(--linea-fuerte); color:var(--tinta); }
+.aviso-btn-principal{ background:var(--ambar-oscuro); color:#1A1408; }
+.aviso-btn-principal:hover{ background:var(--ambar); }
+.aviso-btn-peligro{ background:var(--rojo); color:#2B0E09; }
+.aviso-btn-peligro:hover{ background:#F79E8C; }
+.aviso-btn:focus-visible{ outline:2px solid var(--ambar); outline-offset:2px; }
+
+@media (max-width:420px){
+  .aviso-modal{ flex-direction:column; }
+  .aviso-acciones{ justify-content:stretch; }
+  .aviso-btn{ flex:1; }
+}
+
+/* Overlay de página completa mientras se resuelve la sesión */
+#cargando-pagina{
+  position:fixed; inset:0; background:var(--papel);
+  display:flex; align-items:center; justify-content:center;
+  z-index:50; gap:.6rem; color:var(--tinta-suave); font-size:.9rem;
+}
+#cargando-pagina .spinner{ width:18px; height:18px; }

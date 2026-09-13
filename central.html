@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos — Central</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body class="min-h-screen">
+
+<div id="cargando-pagina"><span class="spinner spinner-oscuro"></span>Cargando…</div>
+
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="no-imprimir w-64 shrink-0 border-r px-5 py-7 flex flex-col justify-between" style="border-color:var(--linea)">
+    <div>
+      <div class="sidebar-logo">
+        <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers">
+      </div>
+      <div class="text-xs mb-8 text-center" style="color:var(--tinta-suave)">Sucursal central</div>
+      <nav class="space-y-1.5">
+        <button data-tab="pedidos" class="tab-btn w-full text-left px-3.5 py-2.5 rounded-lg font-600 text-sm">
+          <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"></path><path d="M9 12h6M9 16h6M9 8h2"></path></svg>
+          <span>Pedidos</span>
+        </button>
+        <button data-tab="productos" class="tab-btn w-full text-left px-3.5 py-2.5 rounded-lg font-600 text-sm">
+          <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          <span>Productos</span>
+        </button>
+        <button data-tab="sucursales" class="tab-btn w-full text-left px-3.5 py-2.5 rounded-lg font-600 text-sm">
+          <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"></path><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"></path></svg>
+          <span>Sucursales</span>
+        </button>
+        <button data-tab="historial" class="tab-btn w-full text-left px-3.5 py-2.5 rounded-lg font-600 text-sm">
+          <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 15"></polyline></svg>
+          <span>Historial</span>
+        </button>
+      </nav>
+    </div>
+    <div class="pt-5 border-t" style="border-color:var(--linea)">
+      <div id="usuario-nombre" class="text-sm font-600 mb-2"></div>
+      <button id="btn-logout" class="link-pie-sidebar text-xs" style="color:var(--tinta-suave)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 px-8 py-6 no-imprimir">
+
+    <!-- TAB PEDIDOS -->
+    <section id="tab-pedidos">
+      <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <h1 class="font-display text-2xl font-700">Pedidos de sucursales</h1>
+        <form id="form-buscar-pedido" class="flex items-center gap-2">
+          <input type="text" inputmode="numeric" id="buscador-numero-pedido" placeholder="Buscar por # de pedido"
+            class="border rounded px-3 py-2 text-sm w-48" style="border-color:var(--linea)">
+          <button type="submit" class="px-3 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Buscar</button>
+        </form>
+      </div>
+      <p id="buscador-numero-pedido-error" class="text-sm mb-3 hidden" style="color:var(--rojo)"></p>
+      <div class="filtros-panel">
+        <div class="filtros-fila">
+          <span class="filtros-etiqueta">Rango</span>
+          <div class="segmentado" id="filtros-rango">
+            <button data-rango="1" class="filtro-btn segmento-btn">Hoy</button>
+            <button data-rango="7" class="filtro-btn segmento-btn">Últimos 7 días</button>
+            <button data-rango="30" class="filtro-btn segmento-btn">Últimos 30 días</button>
+            <button data-rango="" class="filtro-btn segmento-btn">Todos</button>
+          </div>
+        </div>
+        <div class="filtros-fila">
+          <span class="filtros-etiqueta">Estado</span>
+          <div class="filtros-chips" id="filtros-estado">
+            <button data-estado="pendiente,en_preparacion" class="filtro-btn chip-btn">Activos</button>
+            <button data-estado="enviado" class="filtro-btn chip-btn">Enviados</button>
+            <button data-estado="recibido" class="filtro-btn chip-btn">Recibidos</button>
+            <button data-estado="cancelado" class="filtro-btn chip-btn">Cancelados</button>
+            <button data-estado="rechazado" class="filtro-btn chip-btn">Rechazados</button>
+            <button data-estado="" class="filtro-btn chip-btn">Todos</button>
+          </div>
+        </div>
+      </div>
+      <div id="lista-pedidos" class="space-y-3"></div>
+      <div id="pedidos-vacio" class="estado-vacio hidden"></div>
+      <div class="mt-4 flex items-center gap-3">
+        <button id="btn-cargar-mas-pedidos" type="button" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Cargar más pedidos</button>
+        <span id="pedidos-paginacion-info" class="text-xs" style="color:var(--tinta-suave)"></span>
+      </div>
+    </section>
+
+    <!-- TAB PRODUCTOS -->
+    <section id="tab-productos" class="hidden">
+      <h1 class="font-display text-2xl font-700 mb-5">Catálogo de productos</h1>
+
+      <form id="form-producto" class="ticket p-5 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Nombre del producto</label>
+          <input id="p-nombre" required class="w-full border rounded px-3 py-2" style="border-color:var(--linea)">
+        </div>
+        <div>
+          <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Unidad</label>
+          <select id="p-unidad" class="w-full border rounded px-3 py-2" style="border-color:var(--linea)">
+            <option value="kg">Kilogramos</option>
+            <option value="l">Litros</option>
+            <option value="un">Unidades</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <input id="p-categoria" placeholder="Categoría (opcional)" list="lista-categorias" class="w-full border rounded px-3 py-2" style="border-color:var(--linea)">
+          <button type="submit" class="px-4 py-2 rounded text-white font-600 whitespace-nowrap" style="background:var(--ambar-oscuro)">Agregar</button>
+        </div>
+      </form>
+      <datalist id="lista-categorias"></datalist>
+
+      <div class="mb-4 max-w-sm">
+        <input type="text" id="buscador-productos" placeholder="Buscar producto por nombre o categoría…"
+          class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)">
+      </div>
+
+      <div id="lista-productos" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"></div>
+      <p id="productos-vacio" class="text-sm hidden" style="color:var(--tinta-suave)">Todavía no cargaste productos.</p>
+    </section>
+
+    <!-- TAB SUCURSALES -->
+    <section id="tab-sucursales" class="hidden">
+      <h1 class="font-display text-2xl font-700 mb-2">Sucursales</h1>
+      <p class="text-sm mb-5" style="color:var(--tinta-suave)">
+        Este es el nombre oficial de cada sucursal, el que aparece en sus pedidos.
+        Cambiarlo acá no afecta los pedidos ya hechos (cada uno guarda su propia copia
+        del nombre al momento de crearse). La sucursal aparece en esta lista sola,
+        la primera vez que inicia sesión. Si eliminás una de esta lista, tampoco
+        afecta los pedidos ya hechos; si esa cuenta vuelve a iniciar sesión, va a
+        reaparecer sola con un nombre provisorio.
+      </p>
+      <div id="lista-sucursales" class="space-y-2"></div>
+      <p id="sucursales-vacio" class="text-sm hidden" style="color:var(--tinta-suave)">
+        Todavía no inició sesión ninguna sucursal.
+      </p>
+    </section>
+
+    <!-- TAB HISTORIAL -->
+    <section id="tab-historial" class="hidden">
+      <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
+        <h1 class="font-display text-2xl font-700">Historial por sucursal</h1>
+        <button type="button" id="btn-actualizar-historial" class="text-xs font-600" style="color:var(--tinta-suave)">Actualizar</button>
+      </div>
+      <p class="text-sm mb-5" style="color:var(--tinta-suave)">
+        El detalle completo de todo lo que pidió cada sucursal, no solo el último pedido:
+        elegí una sucursal para ver todos sus pedidos y el total acumulado por producto.
+        Los pedidos de cada sucursal se cargan de a tandas para no traer todo el historial de una vez.
+      </p>
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-wrap gap-2" id="historial-sucursales">
+          <div class="skeleton-fila"><span class="spinner spinner-oscuro"></span>Cargando sucursales…</div>
+        </div>
+        <div id="historial-detalle">
+          <div class="historial-detalle-vacio">Elegí una sucursal de la lista para ver su historial completo.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal detalle de pedido -->
+<div id="modal" class="no-imprimir fixed inset-0 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.65)">
+  <div class="rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
+    <div class="flex items-start justify-between mb-1">
+      <div>
+        <div class="font-display text-xl font-700">Pedido <span id="modal-numero" class="num-mono"></span></div>
+        <div class="text-sm" style="color:var(--tinta-suave)" id="modal-sucursal"></div>
+      </div>
+      <button id="modal-cerrar" class="text-2xl leading-none" style="color:var(--tinta-suave)">&times;</button>
+    </div>
+    <div id="modal-badge" class="mb-2"></div>
+    <div id="modal-etapa-info" class="aviso-etapa"></div>
+
+    <table class="w-full text-sm mb-4">
+      <thead>
+        <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
+          <th class="py-2 font-600">Producto</th>
+          <th class="py-2 font-600 text-right">Pedido</th>
+          <th class="py-2 font-600 text-right">Enviar</th>
+          <th class="py-2 font-600">Nota (si difiere)</th>
+        </tr>
+      </thead>
+      <tbody id="modal-items"></tbody>
+    </table>
+
+    <div id="modal-nota-sucursal-wrap" class="mb-4 text-sm hidden">
+      <span class="font-600">Nota de la sucursal al pedir:</span> <span id="modal-nota-sucursal-pedido"></span>
+    </div>
+
+    <!-- Nota editable: en "pendiente" es el motivo de rechazo; en "en_preparacion"
+         son las aclaraciones sobre lo que se termina enviando. Fuera de esas dos
+         etapas ya no se edita más (ver el bloque de lectura de abajo). -->
+    <div id="modal-nota-general-editar-wrap" class="mb-4 hidden">
+      <label id="modal-nota-general-label" class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)"></label>
+      <textarea id="modal-nota-general" rows="2" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)"></textarea>
+    </div>
+
+    <!-- Nota de central, ya de solo lectura (pedido despachado, recibido o rechazado) -->
+    <div id="modal-nota-central-lectura-wrap" class="mb-4 text-sm hidden">
+      <span class="font-600">Nota de central:</span> <span id="modal-nota-central-lectura"></span>
+    </div>
+
+    <!-- Nota que dejó la sucursal al confirmar la recepción (solo pedidos recibidos) -->
+    <div id="modal-nota-recepcion-wrap" class="mb-4 text-sm hidden">
+      <span class="font-600">Nota de la sucursal al recibir:</span> <span id="modal-nota-recepcion"></span>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-5">
+      <button id="btn-imprimir" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Imprimir hoja de producción</button>
+      <button id="btn-en-preparacion" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Marcar en preparación</button>
+      <button id="btn-confirmar-envio" class="hidden px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--verde)">Confirmar envío</button>
+      <button id="btn-imprimir-remito" class="hidden px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--ambar-oscuro)">Imprimir remito</button>
+      <button id="btn-rechazar" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--rojo); color:var(--rojo)">Rechazar pedido</button>
+    </div>
+
+    <div class="pt-4 border-t" style="border-color:var(--linea)">
+      <div class="text-xs font-600 mb-2" style="color:var(--tinta-suave)">Historial</div>
+      <ul id="modal-historial" class="text-xs space-y-1" style="color:var(--tinta-suave)"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- Hoja de impresión: pedido original (para ir a buscar la mercadería) -->
+<div id="hoja-impresion" class="hoja-print">
+  <header class="hi-encabezado">
+    <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers" class="hi-logo">
+    <div>
+      <div class="hi-nombre">Más que Burgers</div>
+      <div class="hi-subtitulo">Hoja de producción — pedido entre sucursales</div>
+    </div>
+  </header>
+
+  <div class="hi-meta">
+    <div class="hi-meta-item hi-meta-numero">
+      <span class="hi-meta-label">Pedido</span>
+      <span class="hi-meta-valor num-mono" id="hi-numero"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Sucursal</span>
+      <span class="hi-meta-valor" id="hi-sucursal"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Fecha del pedido</span>
+      <span class="hi-meta-valor" id="hi-fecha"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Impreso</span>
+      <span class="hi-meta-valor" id="hi-fecha-impresion"></span>
+    </div>
+  </div>
+
+  <table class="hi-tabla">
+    <thead>
+      <tr>
+        <th class="hi-col-check"></th>
+        <th>Producto</th>
+        <th class="hi-col-num">Cantidad</th>
+        <th>Unidad</th>
+      </tr>
+    </thead>
+    <tbody id="hi-items"></tbody>
+  </table>
+  <div class="hi-resumen" id="hi-resumen"></div>
+
+  <div id="hi-nota-sucursal-wrap" class="hi-nota hidden">
+    <span class="hi-nota-label">Nota de la sucursal</span><span id="hi-nota-sucursal"></span>
+  </div>
+  <div id="hi-nota-central-wrap" class="hi-nota hidden">
+    <span class="hi-nota-label">Nota de central</span><span id="hi-nota-central"></span>
+  </div>
+
+  <div class="hi-firma">
+    <div class="hi-firma-campo">
+      <div class="hi-firma-linea"></div>
+      <div class="hi-firma-etiqueta">Armado por</div>
+    </div>
+    <div class="hi-firma-campo">
+      <div class="hi-firma-linea"></div>
+      <div class="hi-firma-etiqueta">Hora de armado</div>
+    </div>
+  </div>
+</div>
+
+<!-- Hoja de impresión: remito de envío (para abrochar a la hoja original y mandar en el camión) -->
+<div id="hoja-remito" class="hoja-print">
+  <header class="hi-encabezado">
+    <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers" class="hi-logo">
+    <div>
+      <div class="hi-nombre">Más que Burgers</div>
+      <div class="hi-subtitulo">Remito de envío — diferencias con el pedido</div>
+    </div>
+  </header>
+
+  <div class="hi-meta">
+    <div class="hi-meta-item hi-meta-numero">
+      <span class="hi-meta-label">Pedido</span>
+      <span class="hi-meta-valor num-mono" id="rm-numero"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Sucursal</span>
+      <span class="hi-meta-valor" id="rm-sucursal"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Fecha del pedido</span>
+      <span class="hi-meta-valor" id="rm-fecha-pedido"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Fecha de envío</span>
+      <span class="hi-meta-valor" id="rm-fecha-envio"></span>
+    </div>
+  </div>
+
+  <table class="hi-tabla">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="hi-col-num">Pedido</th>
+        <th class="hi-col-num">Enviado</th>
+        <th>Nota</th>
+      </tr>
+    </thead>
+    <tbody id="rm-items"></tbody>
+  </table>
+  <div class="hi-resumen" id="rm-resumen"></div>
+
+  <div id="rm-nota-sucursal-wrap" class="hi-nota hidden">
+    <span class="hi-nota-label">Nota de la sucursal</span><span id="rm-nota-sucursal"></span>
+  </div>
+  <div id="rm-nota-central-wrap" class="hi-nota hidden">
+    <span class="hi-nota-label">Nota de central</span><span id="rm-nota-central"></span>
+  </div>
+
+  <div class="hi-firma">
+    <div class="hi-firma-campo">
+      <div class="hi-firma-linea"></div>
+      <div class="hi-firma-etiqueta">Entregó (central)</div>
+    </div>
+    <div class="hi-firma-campo">
+      <div class="hi-firma-linea"></div>
+      <div class="hi-firma-etiqueta">Recibió (sucursal)</div>
+    </div>
+  </div>
+</div>
+
+<!-- Hoja de impresión: historial completo de una sucursal (todos sus pedidos, no solo uno) -->
+<div id="hoja-historial" class="hoja-print">
+  <header class="hi-encabezado">
+    <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers" class="hi-logo">
+    <div>
+      <div class="hi-nombre">Más que Burgers</div>
+      <div class="hi-subtitulo">Historial de pedidos por sucursal</div>
+    </div>
+  </header>
+
+  <div class="hi-meta">
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Sucursal</span>
+      <span class="hi-meta-valor" id="hh-sucursal"></span>
+    </div>
+    <div class="hi-meta-item hi-meta-numero">
+      <span class="hi-meta-label">Pedidos</span>
+      <span class="hi-meta-valor num-mono" id="hh-cantidad"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Período</span>
+      <span class="hi-meta-valor" id="hh-periodo"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Impreso</span>
+      <span class="hi-meta-valor" id="hh-fecha-impresion"></span>
+    </div>
+  </div>
+
+  <table class="hi-tabla">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="hi-col-num">Pedido</th>
+        <th class="hi-col-num">Enviado</th>
+        <th>Nota</th>
+      </tr>
+    </thead>
+    <tbody id="hh-items"></tbody>
+  </table>
+  <div class="hi-resumen" id="hh-resumen"></div>
+</div>
+
+<script type="module">
+import {
+  auth, db, onAuthStateChanged, signOut, obtenerPerfil,
+  collection, query, where, orderBy, limit, startAfter, onSnapshot, getDocs, getCountFromServer,
+  addDoc, updateDoc, deleteDoc, doc, serverTimestamp, arrayUnion
+} from "./firebase-config.js";
+import { conCarga, mostrarCargandoLista, ocultarCargaPagina } from "./ui.js";
+import { alertaBonita, confirmarBonito } from "./avisos.js";
+
+// ---------- Guard de sesión / rol ----------
+let miNombre = "Central";
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { location.href = "index.html"; return; }
+  const perfil = await obtenerPerfil(user);
+  if (perfil.rol !== "central") { location.href = "index.html"; return; }
+  miNombre = perfil.nombre || "Central";
+  document.getElementById("usuario-nombre").textContent = miNombre;
+  mostrarCargandoPedidos();
+  mostrarCargandoLista("lista-productos", "Cargando productos…");
+  mostrarCargandoLista("lista-sucursales", "Cargando sucursales…");
+  iniciarListeners();
+  ocultarCargaPagina();
+});
+document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
+
+// ---------- Tabs ----------
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("activo"));
+    btn.classList.add("activo");
+    document.getElementById("tab-pedidos").classList.toggle("hidden", btn.dataset.tab !== "pedidos");
+    document.getElementById("tab-productos").classList.toggle("hidden", btn.dataset.tab !== "productos");
+    document.getElementById("tab-sucursales").classList.toggle("hidden", btn.dataset.tab !== "sucursales");
+    document.getElementById("tab-historial").classList.toggle("hidden", btn.dataset.tab !== "historial");
+    // El conteo de pedidos por sucursal no se trae al cargar la página (para
+    // no gastar lecturas de más si nadie mira esta pestaña); se carga recién
+    // la primera vez que se abre.
+    if (btn.dataset.tab === "historial" && !conteosCargados) cargarConteosSucursales();
+  });
+});
+document.querySelector('.tab-btn[data-tab="pedidos"]').click();
+
+// ================= PRODUCTOS =================
+
+// Si ya existe una categoría con el mismo nombre (sin importar mayúsculas
+// ni espacios de más), reusamos su forma exacta. Así "panes" y "Panes" no
+// terminan siendo dos categorías distintas en la hoja de impresión.
+function normalizarCategoria(valor, productos){
+  const limpio = valor.trim();
+  if (!limpio) return "";
+  const existente = productos.find(p => (p.categoria || "").trim().toLowerCase() === limpio.toLowerCase());
+  return existente ? existente.categoria.trim() : limpio;
+}
+
+function escapeHtml(str){
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+// Alimenta el <datalist> con las categorías ya usadas (una sola vez por
+// nombre, sin distinguir mayúsculas) para que el input de categoría
+// funcione como autocompletado en vez de texto libre a ciegas.
+function actualizarListaCategorias(productos){
+  const vistas = new Map(); // clave en minúsculas -> primera forma con la que se escribió
+  productos.forEach(p => {
+    const cat = (p.categoria || "").trim();
+    if (!cat || vistas.has(cat.toLowerCase())) return;
+    vistas.set(cat.toLowerCase(), cat);
+  });
+  document.getElementById("lista-categorias").innerHTML = [...vistas.values()]
+    .sort((a, b) => a.localeCompare(b))
+    .map(cat => `<option value="${escapeHtml(cat)}"></option>`)
+    .join("");
+}
+
+document.getElementById("form-producto").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const nombre = document.getElementById("p-nombre").value.trim();
+  const unidad = document.getElementById("p-unidad").value;
+  const categoria = normalizarCategoria(document.getElementById("p-categoria").value, catalogoProductos);
+  if (!nombre) return;
+  const btn = e.target.querySelector('button[type="submit"]');
+  conCarga(btn, async () => {
+    await addDoc(collection(db, "productos"), {
+      nombre, unidad, categoria: categoria || null, activo: true, creadoEn: serverTimestamp()
+    });
+    e.target.reset();
+  }, "Agregando…");
+});
+
+const UNIDADES = [
+  { valor: "kg", etiqueta: "Kilogramos" },
+  { valor: "l", etiqueta: "Litros" },
+  { valor: "un", etiqueta: "Unidades" },
+];
+
+// Traduce el código guardado ("kg", "l", "un") a la palabra completa para mostrar en pantalla.
+function etiquetaUnidad(valor){
+  return UNIDADES.find(u => u.valor === valor)?.etiqueta || valor;
+}
+
+function renderProductos(productos){
+  const cont = document.getElementById("lista-productos");
+  cont.innerHTML = "";
+  actualizarListaCategorias(productos); // el datalist siempre usa TODAS las categorías, no solo las filtradas por la búsqueda
+
+  const visibles = filtrarProductosPorBusqueda(productos);
+  const vacioEl = document.getElementById("productos-vacio");
+  if (productos.length === 0) {
+    vacioEl.textContent = "Todavía no cargaste productos.";
+    vacioEl.classList.remove("hidden");
+  } else if (visibles.length === 0) {
+    vacioEl.textContent = "No se encontraron productos que coincidan con la búsqueda.";
+    vacioEl.classList.remove("hidden");
+  } else {
+    vacioEl.classList.add("hidden");
+  }
+
+  visibles.forEach(p => {
+    const card = document.createElement("div");
+    card.className = "producto-card";
+    pintarVistaProducto(card, p);
+    cont.appendChild(card);
+  });
+}
+
+// Filtro 100% en el cliente: el catálogo completo ya está descargado en
+// catalogoProductos (vía onSnapshot), así que no hace falta ir a Firestore
+// para esto — con cientos de productos, filtrar el array en memoria es
+// instantáneo y no gasta lecturas extra.
+let terminoBusquedaProductos = "";
+function filtrarProductosPorBusqueda(productos){
+  const termino = terminoBusquedaProductos.trim().toLowerCase();
+  if (!termino) return productos;
+  return productos.filter(p =>
+    (p.nombre || "").toLowerCase().includes(termino) ||
+    (p.categoria || "").toLowerCase().includes(termino)
+  );
+}
+
+document.getElementById("buscador-productos").addEventListener("input", (e) => {
+  terminoBusquedaProductos = e.target.value;
+  renderProductos(catalogoProductos);
+});
+
+function pintarVistaProducto(card, p){
+  card.classList.toggle("inactivo", !p.activo);
+  card.innerHTML = `
+    <div>
+      <div class="producto-card-nombre${p.activo ? "" : " line-through"}">${escapeHtml(p.nombre)}</div>
+      <div class="producto-card-meta">${escapeHtml(etiquetaUnidad(p.unidad))}${p.categoria ? ' · ' + escapeHtml(p.categoria) : ''}</div>
+    </div>
+    <label class="producto-card-toggle">
+      <span class="toggle-texto">${p.activo ? "Activo" : "Inactivo"}</span>
+      <span class="switch">
+        <input type="checkbox" class="chk-activo" ${p.activo ? "checked" : ""}>
+        <span class="switch-track"></span>
+      </span>
+    </label>
+    <div class="producto-card-acciones">
+      <button type="button" class="btn-editar-producto">Editar</button>
+      <button type="button" class="btn-eliminar-producto">Eliminar</button>
+    </div>`;
+
+  const chk = card.querySelector(".chk-activo");
+  chk.addEventListener("change", async () => {
+    const valorNuevo = chk.checked;
+    chk.disabled = true;
+    try {
+      await updateDoc(doc(db, "productos", p.id), { activo: valorNuevo });
+      p.activo = valorNuevo;
+      card.classList.toggle("inactivo", !valorNuevo);
+      card.querySelector(".producto-card-nombre").classList.toggle("line-through", !valorNuevo);
+      card.querySelector(".toggle-texto").textContent = valorNuevo ? "Activo" : "Inactivo";
+    } catch (err) {
+      console.error(err);
+      chk.checked = !valorNuevo; // revertir si falló
+      await alertaBonita("No se pudo guardar el cambio. Probá de nuevo.", { tipo: "error" });
+    } finally {
+      chk.disabled = false;
+    }
+  });
+
+  card.querySelector(".btn-editar-producto").addEventListener("click", () => pintarEdicionProducto(card, p));
+
+  card.querySelector(".btn-eliminar-producto").addEventListener("click", async () => {
+    const confirmado = await confirmarBonito(
+      `¿Eliminar "${p.nombre}" del catálogo?\n\nLos pedidos ya hechos no se ven afectados: guardan su propia copia del nombre y la unidad.`,
+      { tipo: "peligro", textoConfirmar: "Eliminar" }
+    );
+    if (!confirmado) return;
+    const btn = card.querySelector(".btn-eliminar-producto");
+    btn.disabled = true;
+    try {
+      await deleteDoc(doc(db, "productos", p.id));
+      // La tarjeta desaparece sola cuando llegue el próximo snapshot;
+      // si tarda, igual queda deshabilitada para evitar doble click.
+    } catch (err) {
+      console.error(err);
+      await alertaBonita("No se pudo eliminar el producto. Probá de nuevo.", { tipo: "error" });
+      btn.disabled = false;
+    }
+  });
+}
+
+function pintarEdicionProducto(card, p){
+  card.innerHTML = `
+    <div class="space-y-2">
+      <input type="text" class="edit-nombre w-full border rounded px-2 py-1.5 text-sm" style="border-color:var(--linea)" value="${escapeHtml(p.nombre)}">
+      <div class="flex gap-2">
+        <select class="edit-unidad border rounded px-2 py-1.5 text-sm flex-1" style="border-color:var(--linea)">
+          ${UNIDADES.map(u => `<option value="${u.valor}" ${p.unidad === u.valor ? "selected" : ""}>${u.etiqueta}</option>`).join("")}
+        </select>
+      </div>
+      <input type="text" class="edit-categoria w-full border rounded px-2 py-1.5 text-sm" style="border-color:var(--linea)"
+        list="lista-categorias" placeholder="Categoría (opcional)" value="${escapeHtml(p.categoria || "")}">
+    </div>
+    <div class="producto-card-acciones">
+      <button type="button" class="btn-guardar-producto">Guardar</button>
+      <button type="button" class="btn-cancelar-edicion">Cancelar</button>
+    </div>`;
+
+  card.querySelector(".btn-cancelar-edicion").addEventListener("click", () => pintarVistaProducto(card, p));
+
+  const btnGuardar = card.querySelector(".btn-guardar-producto");
+  btnGuardar.addEventListener("click", async () => {
+    const nombre = card.querySelector(".edit-nombre").value.trim();
+    const unidad = card.querySelector(".edit-unidad").value;
+    const categoria = normalizarCategoria(card.querySelector(".edit-categoria").value, catalogoProductos);
+    if (!nombre) { await alertaBonita("El nombre no puede quedar vacío.", { tipo: "advertencia" }); return; }
+    conCarga(btnGuardar, async () => {
+      await updateDoc(doc(db, "productos", p.id), { nombre, unidad, categoria: categoria || null });
+      Object.assign(p, { nombre, unidad, categoria: categoria || null });
+      pintarVistaProducto(card, p);
+    }, "Guardando…");
+  });
+}
+
+// ================= SUCURSALES =================
+// El nombre oficial vive en Firestore (colección "sucursales", doc = uid).
+// Cada sucursal se crea sola (ver obtenerPerfil en firebase-config.js) la
+// primera vez que esa cuenta inicia sesión; acá central solo la renombra.
+function renderSucursales(sucursales){
+  const cont = document.getElementById("lista-sucursales");
+  cont.innerHTML = "";
+  document.getElementById("sucursales-vacio").classList.toggle("hidden", sucursales.length > 0);
+  sucursales
+    .slice()
+    .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""))
+    .forEach(s => {
+      const row = document.createElement("div");
+      row.className = "ticket px-4 py-3 flex items-center gap-3";
+      row.innerHTML = `
+        <input type="text" class="edit-nombre-sucursal flex-1 border rounded px-3 py-2 text-sm font-600"
+          style="border-color:var(--linea)" value="${escapeHtml(s.nombre || "")}">
+        <span class="text-xs truncate" style="color:var(--tinta-suave); max-width:14rem">${escapeHtml(s.email || "")}</span>
+        <button type="button" class="btn-guardar-sucursal px-3 py-1.5 rounded text-xs font-600" style="color:var(--verde)">Guardar</button>
+        <button type="button" class="btn-eliminar-sucursal px-3 py-1.5 rounded text-xs font-600" style="color:var(--rojo)">Eliminar</button>`;
+
+      const input = row.querySelector(".edit-nombre-sucursal");
+      const btn = row.querySelector(".btn-guardar-sucursal");
+      btn.disabled = true;
+      btn.style.opacity = ".5";
+
+      input.addEventListener("input", () => {
+        const cambio = input.value.trim() !== (s.nombre || "") && input.value.trim() !== "";
+        btn.disabled = !cambio;
+        btn.style.opacity = cambio ? "1" : ".5";
+      });
+
+      btn.addEventListener("click", () => {
+        const nombreNuevo = input.value.trim();
+        if (!nombreNuevo) return;
+        conCarga(btn, async () => {
+          await updateDoc(doc(db, "sucursales", s.id), { nombre: nombreNuevo });
+          s.nombre = nombreNuevo;
+          btn.disabled = true;
+          btn.style.opacity = ".5";
+        }, "Guardando…");
+      });
+
+      const btnEliminar = row.querySelector(".btn-eliminar-sucursal");
+      btnEliminar.addEventListener("click", async () => {
+        const confirmado = await confirmarBonito(
+          `¿Eliminar "${s.nombre || s.email || "esta sucursal"}" de la lista?\n\nLos pedidos ya hechos no se ven afectados: guardan su propia copia del nombre. Si esa cuenta vuelve a iniciar sesión, va a reaparecer sola con un nombre provisorio.`,
+          { tipo: "peligro", textoConfirmar: "Eliminar" }
+        );
+        if (!confirmado) return;
+        conCarga(btnEliminar, async () => {
+          await deleteDoc(doc(db, "sucursales", s.id));
+          // La fila desaparece sola cuando llegue el próximo snapshot.
+        }, "Eliminando…", false).catch(() => {
+          alertaBonita("No se pudo eliminar la sucursal. Probá de nuevo.", { tipo: "error" });
+        });
+      });
+
+      cont.appendChild(row);
+    });
+}
+
+// ================= PEDIDOS =================
+// Antes esto traía TODA la colección "pedidos" de una sola vez
+// (orderBy sin límite). Con miles de pedidos eso se vuelve lento y
+// consume lecturas de Firestore de más cada vez que alguien abre la
+// pestaña. Ahora se pide de a tandas (limit) y, opcionalmente, acotado
+// a un rango de fechas — el filtro por estado sigue siendo en el
+// cliente, pero sobre un conjunto acotado, no sobre todo el historial.
+let pedidosVisibles = [];
+let catalogoProductos = [];
+// "Activos" (pendiente + en_preparacion) es la vista por defecto: lo que
+// hay que atender hoy. Cancelados y rechazados quedan afuera a propósito;
+// solo aparecen si se los filtra puntualmente o se elige "Todos".
+let filtroActual = "pendiente,en_preparacion";
+let rangoPedidosDias = 1; // null = sin límite de fecha ("Todos")
+const TANDA_PEDIDOS = 50;
+let limitePedidos = TANDA_PEDIDOS;
+let hayMasPedidos = false;
+let unsubPedidos = null;
+
+function badgeHtml(estado){
+  const mapa = {
+    pendiente: ["badge-pendiente", "Pendiente"],
+    en_preparacion: ["badge-preparacion", "En preparación"],
+    enviado: ["badge-enviado", "Enviado"],
+    recibido: ["badge-recibido", "Recibido"],
+    cancelado: ["badge-cancelado", "Cancelado"],
+    rechazado: ["badge-rechazado", "Rechazado"],
+  };
+  const [clase, texto] = mapa[estado] || ["badge-pendiente", estado];
+  return `<span class="badge ${clase}">${texto}</span>`;
+}
+
+function tieneDiferencias(pedido){
+  return (pedido.items || []).some(it => it.cantidadEnviada != null && Number(it.cantidadEnviada) !== Number(it.cantidadPedida));
+}
+
+function fechaLegible(ts){
+  if (!ts || !ts.toDate) return "";
+  return ts.toDate().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+}
+
+function fechaLegibleMs(ms){
+  if (!ms) return "";
+  return new Date(ms).toLocaleString("es-AR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+}
+
+const textoEstado = {
+  pendiente: "Pedido creado",
+  en_preparacion: "Pasó a preparación",
+  enviado: "Despachado desde central",
+  recibido: "Confirmado por la sucursal",
+  cancelado: "Cancelado por la sucursal",
+  rechazado: "Rechazado por central",
+};
+
+function renderHistorial(pedido){
+  const ul = document.getElementById("modal-historial");
+  const eventos = [];
+  // El primer evento siempre es la creación del pedido (no está en "historial" porque
+  // ese campo se empieza a llenar recién con el primer cambio de estado).
+  eventos.push({ estado: "pendiente", en: pedido.creadoEn?.toMillis?.() ?? null, por: pedido.sucursalNombre, esServidor: true });
+  (pedido.historial || []).forEach(h => eventos.push(h));
+
+  ul.innerHTML = eventos.map(ev => {
+    const fecha = ev.esServidor ? fechaLegible(pedido.creadoEn) : fechaLegibleMs(ev.en);
+    const nota = ev.nota ? ` — "${ev.nota}"` : "";
+    return `<li>• ${textoEstado[ev.estado] || ev.estado} — ${ev.por || ""} · ${fecha}${nota}</li>`;
+  }).join("");
+}
+
+// Orden operativo de los estados (no alfabético): primero lo que hay que
+// atender, después lo ya despachado, al final lo que quedó fuera de curso.
+// Se usa tanto para agrupar "Activos"/"Todos" como para dar título a cada
+// sección.
+const ORDEN_ESTADOS = ["pendiente", "en_preparacion", "enviado", "recibido", "cancelado", "rechazado"];
+const TITULOS_ESTADOS = {
+  pendiente: "Pendientes",
+  en_preparacion: "En preparación",
+  enviado: "Enviados",
+  recibido: "Recibidos",
+  cancelado: "Cancelados",
+  rechazado: "Rechazados",
+};
+
+// filtroActual guarda uno o más estados separados por coma ("pendiente,en_preparacion"
+// para "Activos"), un solo estado ("pendiente"), o "" para "Todos" (sin filtrar).
+function estadosDelFiltro(filtro){
+  return filtro === "" ? ORDEN_ESTADOS : filtro.split(",");
+}
+
+function crearTicketPedido(p){
+  const row = document.createElement("div");
+  row.className = `ticket px-4 py-3 flex items-center justify-between cursor-pointer ${p.estado}`;
+  row.innerHTML = `
+    <div class="flex items-center gap-4">
+      <div class="num-mono text-lg font-700">#${p.numero ?? "—"}</div>
+      <div>
+        <div class="font-600">${p.sucursalNombre || "Sucursal"}</div>
+        <div class="text-xs" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      ${tieneDiferencias(p) ? '<span class="badge badge-diferencia">Diferencia</span>' : ''}
+      ${badgeHtml(p.estado)}
+    </div>`;
+  row.addEventListener("click", () => abrirModal(p));
+  return row;
+}
+
+// El cartel de "no hay pedidos" y el de "cargando pedidos" ocupan el mismo
+// lugar (#pedidos-vacio): así nunca queda el spinner de una tanda nueva
+// mostrándose a la vez que el aviso vacío de la tanda anterior.
+const PEDIDOS_VACIO_HTML = `
+        <div class="estado-vacio-icono">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-6l-2 3h-4l-2-3H2"/>
+            <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+          </svg>
+        </div>
+        <p class="estado-vacio-texto">No hay pedidos en esta categoría</p>`;
+const PEDIDOS_CARGANDO_HTML = `
+        <div class="estado-vacio-icono">
+          <span class="spinner spinner-oscuro"></span>
+        </div>
+        <p class="estado-vacio-texto">Cargando pedidos…</p>`;
+
+function mostrarCargandoPedidos(){
+  document.getElementById("lista-pedidos").innerHTML = "";
+  const vacioEl = document.getElementById("pedidos-vacio");
+  vacioEl.innerHTML = PEDIDOS_CARGANDO_HTML;
+  vacioEl.classList.remove("hidden");
+  document.getElementById("btn-cargar-mas-pedidos").classList.add("hidden");
+  document.getElementById("pedidos-paginacion-info").textContent = "";
+}
+
+function renderPedidos(){
+  const cont = document.getElementById("lista-pedidos");
+  cont.innerHTML = "";
+
+  const estados = estadosDelFiltro(filtroActual);
+  const filtrados = pedidosVisibles.filter(p => estados.includes(p.estado));
+  const vacioEl = document.getElementById("pedidos-vacio");
+  vacioEl.innerHTML = PEDIDOS_VACIO_HTML;
+  vacioEl.classList.toggle("hidden", filtrados.length > 0);
+
+  // Con un solo estado seleccionado (ej. "Pendientes") no hace falta título
+  // de sección, es una lista simple. Con "Activos" o "Todos" (más de un
+  // estado) se agrupa, en el orden operativo fijo, y se omite cualquier
+  // sección que no tenga pedidos en este momento.
+  if (estados.length === 1) {
+    filtrados.forEach(p => cont.appendChild(crearTicketPedido(p)));
+  } else {
+    estados.forEach(estado => {
+      const delGrupo = filtrados.filter(p => p.estado === estado);
+      if (delGrupo.length === 0) return;
+      const seccion = document.createElement("div");
+      seccion.className = "mb-6";
+      seccion.innerHTML = `<div class="text-xs font-700 uppercase tracking-wide mb-2" style="color:var(--tinta-suave)">${TITULOS_ESTADOS[estado]} · ${delGrupo.length}</div>`;
+      const listaDiv = document.createElement("div");
+      listaDiv.className = "space-y-3";
+      delGrupo.forEach(p => listaDiv.appendChild(crearTicketPedido(p)));
+      seccion.appendChild(listaDiv);
+      cont.appendChild(seccion);
+    });
+  }
+
+  // Info + botón "cargar más": si la última tanda vino completa, es
+  // probable (no seguro, pero suficiente como pista) que haya más
+  // pedidos viejos sin traer todavía. El conteo es sobre lo cargado en
+  // total, no sobre lo que se ve filtrado, porque la paginación depende
+  // del límite de la consulta, no del filtro de estado.
+  const rangoTexto = { 1: "de hoy", 7: "de los últimos 7 días", 30: "de los últimos 30 días", "": "" }[rangoPedidosDias ?? ""];
+  document.getElementById("pedidos-paginacion-info").textContent = filtrados.length === 0
+    ? ""
+    : `Mostrando ${filtrados.length} de ${pedidosVisibles.length} pedido${pedidosVisibles.length === 1 ? "" : "s"} cargados${rangoTexto ? " " + rangoTexto : ""}.`;
+  document.getElementById("btn-cargar-mas-pedidos").classList.toggle("hidden", !hayMasPedidos);
+}
+
+// Arma y (re)suscribe la consulta de pedidos según el rango de fechas y
+// el límite vigentes. Cada vez que cambia el rango o se pide "cargar
+// más", se da de baja el listener anterior y se abre uno nuevo — así
+// nunca queda más de una suscripción activa a la colección completa.
+function construirQueryPedidos(){
+  const restricciones = [];
+  if (rangoPedidosDias) {
+    const desde = new Date();
+    desde.setDate(desde.getDate() - rangoPedidosDias);
+    desde.setHours(0, 0, 0, 0);
+    restricciones.push(where("creadoEn", ">=", desde));
+  }
+  restricciones.push(orderBy("creadoEn", "desc"));
+  restricciones.push(limit(limitePedidos));
+  return query(collection(db, "pedidos"), ...restricciones);
+}
+
+function suscribirPedidos(){
+  if (unsubPedidos) unsubPedidos();
+  mostrarCargandoPedidos();
+  unsubPedidos = onSnapshot(
+    construirQueryPedidos(),
+    (snap) => {
+      pedidosVisibles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      hayMasPedidos = pedidosVisibles.length >= limitePedidos;
+      renderPedidos();
+      if (pedidoActivo) {
+        const actualizado = pedidosVisibles.find(p => p.id === pedidoActivo.id);
+        if (actualizado) pedidoActivo = actualizado;
+      }
+    },
+    (err) => {
+      console.error("Error leyendo pedidos:", err);
+      // El error más probable acá es que falte crear, en Firebase, el
+      // índice compuesto (creadoEn) que pide esta consulta con rango de
+      // fechas; la consola del navegador trae el link para crearlo solo.
+    }
+  );
+}
+
+document.querySelectorAll("#filtros-estado .filtro-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.getElementById("buscador-numero-pedido-error").classList.add("hidden");
+    filtroActual = btn.dataset.estado;
+    document.querySelectorAll("#filtros-estado .filtro-btn").forEach(b => b.classList.remove("activo"));
+    btn.classList.add("activo");
+    renderPedidos();
+  });
+});
+document.querySelector('#filtros-estado .filtro-btn[data-estado="pendiente,en_preparacion"]').classList.add("activo");
+
+document.querySelectorAll("#filtros-rango .filtro-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.getElementById("buscador-numero-pedido-error").classList.add("hidden");
+    rangoPedidosDias = btn.dataset.rango ? Number(btn.dataset.rango) : null;
+    limitePedidos = TANDA_PEDIDOS; // al cambiar el rango, se vuelve a empezar de la primera tanda
+    document.querySelectorAll("#filtros-rango .filtro-btn").forEach(b => b.classList.remove("activo"));
+    btn.classList.add("activo");
+    suscribirPedidos();
+  });
+});
+document.querySelector('#filtros-rango .filtro-btn[data-rango="1"]').classList.add("activo");
+
+document.getElementById("btn-cargar-mas-pedidos").addEventListener("click", () => {
+  limitePedidos += TANDA_PEDIDOS;
+  suscribirPedidos();
+});
+
+// Buscar un pedido puntual por número: a diferencia del filtro de estado/rango
+// (que solo mira lo que ya está cargado en pedidosVisibles), esto SÍ consulta
+// Firestore directamente, porque la paginación deja afuera los pedidos viejos
+// y no se los puede encontrar filtrando en el cliente.
+document.getElementById("form-buscar-pedido").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("buscador-numero-pedido-error");
+  errorEl.classList.add("hidden");
+  const input = document.getElementById("buscador-numero-pedido");
+  const numero = Number(input.value.trim());
+  if (!input.value.trim() || Number.isNaN(numero)) {
+    errorEl.textContent = "Ingresá un número de pedido válido.";
+    errorEl.classList.remove("hidden");
+    return;
+  }
+  const btn = e.target.querySelector('button[type="submit"]');
+  conCarga(btn, async () => {
+    const snap = await getDocs(query(collection(db, "pedidos"), where("numero", "==", numero), limit(1)));
+    if (snap.empty) {
+      errorEl.textContent = `No se encontró ningún pedido con el número #${numero}.`;
+      errorEl.classList.remove("hidden");
+      return;
+    }
+    const encontrado = { id: snap.docs[0].id, ...snap.docs[0].data() };
+    abrirModal(encontrado);
+    input.value = "";
+  }, "Buscando…", false).catch(() => {
+    errorEl.textContent = "No se pudo buscar el pedido. Probá de nuevo.";
+    errorEl.classList.remove("hidden");
+  });
+});
+
+// El aviso de error de la búsqueda quedaba pegado mientras se seguía
+// escribiendo un número nuevo (solo se actualizaba al tocar "Buscar" de
+// nuevo). Apenas el usuario retoma el campo, se oculta: si el próximo
+// intento vuelve a fallar, el submit de arriba lo va a mostrar de nuevo.
+document.getElementById("buscador-numero-pedido").addEventListener("input", () => {
+  document.getElementById("buscador-numero-pedido-error").classList.add("hidden");
+});
+
+// ---------- Modal ----------
+let pedidoActivo = null;
+
+// Mensajes de ayuda contextual que se muestran arriba de la tabla, para que
+// quede claro qué corresponde hacer en cada etapa sin tener que adivinarlo
+// por qué botones aparecen.
+const AYUDA_ETAPA = {
+  pendiente: "Recién llega de la sucursal. Imprimí la hoja para ir a armarlo, o rechazalo si no corresponde.",
+  en_preparacion: "En preparación. Cotejá contra la hoja impresa y cargá acá lo que efectivamente se envía.",
+  enviado: "Ya se despachó. Queda esperar a que la sucursal confirme que lo recibió.",
+  recibido: "Pedido cerrado. Esto es lo que quedó registrado.",
+  cancelado: "La sucursal canceló este pedido antes de que se empezara a preparar.",
+  rechazado: "Vos rechazaste este pedido.",
+};
+
+function abrirModal(pedido){
+  pedidoActivo = pedido;
+  document.getElementById("modal-numero").textContent = "#" + (pedido.numero ?? "—");
+  document.getElementById("modal-sucursal").textContent = pedido.sucursalNombre || "";
+  document.getElementById("modal-badge").innerHTML = badgeHtml(pedido.estado);
+  document.getElementById("modal-etapa-info").textContent = AYUDA_ETAPA[pedido.estado] || "";
+
+  const notaSucursalWrap = document.getElementById("modal-nota-sucursal-wrap");
+  if (pedido.notaSucursalPedido) {
+    notaSucursalWrap.classList.remove("hidden");
+    document.getElementById("modal-nota-sucursal-pedido").textContent = pedido.notaSucursalPedido;
+  } else {
+    notaSucursalWrap.classList.add("hidden");
+  }
+
+  // La tabla de ítems muestra distinta información según la etapa: recién
+  // llegado no hay nada que decidir todavía (guiones); en preparación es
+  // donde se carga lo que realmente se envía; de ahí en más queda fija,
+  // de solo lectura.
+  const enPreparacion = pedido.estado === "en_preparacion";
+  const tbody = document.getElementById("modal-items");
+  tbody.innerHTML = "";
+  (pedido.items || []).forEach((it, idx) => {
+    const tr = document.createElement("tr");
+    tr.className = "border-b";
+    tr.style.borderColor = "var(--linea)";
+
+    let celdaEnviado, celdaNota;
+    if (pedido.estado === "pendiente") {
+      celdaEnviado = `<span style="color:var(--tinta-tenue)">—</span>`;
+      celdaNota = `<span style="color:var(--tinta-tenue)">—</span>`;
+    } else if (enPreparacion) {
+      const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+      celdaEnviado = `<input type="number" min="0" step="any" data-idx="${idx}" class="input-cant input-enviada border rounded px-2 py-1" style="border-color:var(--linea)" value="${enviada}">`;
+      celdaNota = `<input type="text" data-idx="${idx}" class="input-nota-item border rounded px-2 py-1 w-full text-xs" style="border-color:var(--linea)" placeholder="ej: no había stock" value="${escapeHtml(it.notaItem || "")}">`;
+    } else {
+      const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+      const difiere = Number(enviada) !== Number(it.cantidadPedida);
+      celdaEnviado = `<span class="num-mono${difiere ? " font-700" : ""}"${difiere ? ' style="color:var(--rojo)"' : ""}>${enviada}</span>`;
+      celdaNota = `<span class="text-xs" style="color:var(--tinta-suave)">${escapeHtml(it.notaItem || "—")}</span>`;
+    }
+
+    tr.innerHTML = `
+      <td class="py-2">${escapeHtml(it.nombre)} <span class="text-xs" style="color:var(--tinta-suave)">(${escapeHtml(etiquetaUnidad(it.unidad))})</span></td>
+      <td class="py-2 text-right num-mono">${it.cantidadPedida}</td>
+      <td class="py-2 text-right">${celdaEnviado}</td>
+      <td class="py-2">${celdaNota}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Nota general: editable mientras hay algo que decidir (pendiente = motivo
+  // de rechazo; en_preparacion = aclaraciones del envío). Una vez despachado,
+  // recibido, cancelado o rechazado queda fija — ya no tiene sentido seguir
+  // tocando lo que ya se mandó o se resolvió.
+  const notaEditarWrap = document.getElementById("modal-nota-general-editar-wrap");
+  const notaCentralLecturaWrap = document.getElementById("modal-nota-central-lectura-wrap");
+  const notaRecepcionWrap = document.getElementById("modal-nota-recepcion-wrap");
+
+  if (pedido.estado === "pendiente" || enPreparacion) {
+    notaEditarWrap.classList.remove("hidden");
+    notaCentralLecturaWrap.classList.add("hidden");
+    notaRecepcionWrap.classList.add("hidden");
+    document.getElementById("modal-nota-general").value = pedido.notaCentral || "";
+    document.getElementById("modal-nota-general-label").textContent = pedido.estado === "pendiente"
+      ? "Nota (solo hace falta si vas a rechazar el pedido)"
+      : "Nota general del pedido (opcional; contá acá cualquier diferencia con lo pedido)";
+  } else {
+    notaEditarWrap.classList.add("hidden");
+    if (pedido.notaCentral) {
+      notaCentralLecturaWrap.classList.remove("hidden");
+      document.getElementById("modal-nota-central-lectura").textContent = pedido.notaCentral;
+    } else {
+      notaCentralLecturaWrap.classList.add("hidden");
+    }
+    if (pedido.estado === "recibido" && pedido.notaSucursal) {
+      notaRecepcionWrap.classList.remove("hidden");
+      document.getElementById("modal-nota-recepcion").textContent = pedido.notaSucursal;
+    } else {
+      notaRecepcionWrap.classList.add("hidden");
+    }
+  }
+
+  // Botones: uno por etapa, nada de mostrar acciones que ya no corresponden.
+  document.getElementById("btn-imprimir").classList.toggle("hidden", pedido.estado !== "pendiente");
+  document.getElementById("btn-en-preparacion").classList.toggle("hidden", pedido.estado !== "pendiente");
+  document.getElementById("btn-rechazar").classList.toggle("hidden", pedido.estado !== "pendiente");
+  document.getElementById("btn-confirmar-envio").classList.toggle("hidden", !enPreparacion);
+  // El remito solo tiene sentido una vez despachado (hay cantidades enviadas
+  // para comparar contra lo pedido); se puede reimprimir después si hace falta.
+  document.getElementById("btn-imprimir-remito").classList.toggle("hidden", !["enviado", "recibido"].includes(pedido.estado));
+
+  renderHistorial(pedido);
+  document.getElementById("modal").classList.remove("hidden");
+  document.getElementById("modal").classList.add("flex");
+}
+
+document.getElementById("modal-cerrar").addEventListener("click", () => {
+  document.getElementById("modal").classList.add("hidden");
+  document.getElementById("modal").classList.remove("flex");
+});
+
+document.getElementById("btn-en-preparacion").addEventListener("click", (e) => {
+  conCarga(e.currentTarget, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+      estado: "en_preparacion",
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "en_preparacion", en: Date.now(), por: miNombre }),
+    });
+    document.getElementById("modal").classList.add("hidden");
+  }, "Guardando…");
+});
+
+document.getElementById("btn-confirmar-envio").addEventListener("click", async (e) => {
+  const cantidadesInputs = document.querySelectorAll(".input-enviada");
+  const notasInputs = document.querySelectorAll(".input-nota-item");
+  const items = pedidoActivo.items.map((it, idx) => ({ ...it }));
+
+  let faltaNota = false;
+  cantidadesInputs.forEach(inp => {
+    const idx = Number(inp.dataset.idx);
+    items[idx].cantidadEnviada = Number(inp.value);
+  });
+  notasInputs.forEach(inp => {
+    const idx = Number(inp.dataset.idx);
+    items[idx].notaItem = inp.value.trim();
+    if (Number(items[idx].cantidadEnviada) !== Number(items[idx].cantidadPedida) && !items[idx].notaItem) {
+      faltaNota = true;
+    }
+  });
+
+  if (faltaNota) {
+    await alertaBonita("Hay productos con una cantidad distinta a la pedida. Agregá una nota explicando la diferencia antes de confirmar.", { tipo: "advertencia" });
+    return;
+  }
+
+  const notaGeneral = document.getElementById("modal-nota-general").value.trim();
+  conCarga(e.currentTarget, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+      items,
+      estado: "enviado",
+      notaCentral: notaGeneral,
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "enviado", en: Date.now(), por: miNombre, nota: notaGeneral || "" }),
+    });
+    document.getElementById("modal").classList.add("hidden");
+    // El remito hay que abrocharlo a la hoja original ahora, con el camión
+    // esperando — se imprime de una, con la hora de este mismo despacho.
+    const fechaEnvio = new Date().toLocaleString("es-AR", {
+      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    imprimirRemito(pedidoActivo, items, notaGeneral, fechaEnvio);
+  }, "Confirmando…");
+});
+
+document.getElementById("btn-rechazar").addEventListener("click", async (e) => {
+  const btn = e.currentTarget; // se guarda antes de los await: currentTarget deja de ser válido una vez que el evento terminó de despacharse
+  const notaGeneral = document.getElementById("modal-nota-general").value.trim();
+  if (!notaGeneral) {
+    await alertaBonita("Para rechazar un pedido hay que dejar una nota explicando el motivo.", { tipo: "advertencia" });
+    return;
+  }
+  const confirmado = await confirmarBonito(
+    `¿Rechazar el pedido #${pedidoActivo.numero ?? ""}? La sucursal va a ver este motivo, y el pedido no se va a preparar ni despachar.`,
+    { tipo: "peligro", textoConfirmar: "Rechazar pedido" }
+  );
+  if (!confirmado) return;
+  conCarga(btn, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+      estado: "rechazado",
+      notaCentral: notaGeneral,
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "rechazado", en: Date.now(), por: miNombre, nota: notaGeneral }),
+    });
+    document.getElementById("modal").classList.add("hidden");
+  }, "Rechazando…");
+});
+
+// Solo una hoja puede estar "activa" (visible) al momento de imprimir, ya que
+// ambas viven ocultas en el DOM y comparten el mismo estilo de impresión.
+function prepararImpresion(idHoja){
+  document.querySelectorAll(".hoja-print").forEach(h => h.classList.toggle("activa", h.id === idHoja));
+}
+
+document.getElementById("btn-imprimir").addEventListener("click", () => {
+  const p = pedidoActivo;
+  const items = p.items || [];
+
+  document.getElementById("hi-numero").textContent = "#" + (p.numero ?? "—");
+  document.getElementById("hi-sucursal").textContent = p.sucursalNombre || "";
+  document.getElementById("hi-fecha").textContent = fechaLegible(p.creadoEn);
+  document.getElementById("hi-fecha-impresion").textContent = new Date().toLocaleString("es-AR", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+  const notaSucursal = (p.notaSucursalPedido || "").trim();
+  const wrapNotaSucursal = document.getElementById("hi-nota-sucursal-wrap");
+  wrapNotaSucursal.classList.toggle("hidden", !notaSucursal);
+  document.getElementById("hi-nota-sucursal").textContent = notaSucursal;
+
+  // La hoja de producción ahora solo se imprime en la etapa "pendiente" (recién
+  // llegado), antes de cualquier decisión de central, así que no lleva nota de
+  // central — ese campo se completa después, durante la preparación, y se
+  // imprime en el remito, no acá.
+  document.getElementById("hi-nota-central-wrap").classList.add("hidden");
+  document.getElementById("hi-resumen").innerHTML =
+    `<span class="hi-resumen-texto">${items.length}${items.length === 1 ? " producto" : " productos"}</span>`;
+
+  // El pedido no guarda la categoría de cada ítem, así que la sacamos del
+  // catálogo actual (por productoId) para poder agrupar la hoja. Agrupamos
+  // sin distinguir mayúsculas por si quedó algún producto viejo cargado
+  // con una variante de mayúsculas distinta a la actual.
+  const categoriaPorId = {};
+  catalogoProductos.forEach(prod => { categoriaPorId[prod.id] = (prod.categoria || "Sin categoría").trim(); });
+
+  const grupos = new Map(); // clave normalizada -> { etiqueta, items }
+  items.forEach(it => {
+    const cat = categoriaPorId[it.productoId] || "Sin categoría";
+    const clave = cat.toLowerCase();
+    if (!grupos.has(clave)) grupos.set(clave, { etiqueta: cat, items: [] });
+    grupos.get(clave).items.push(it);
+  });
+  const mostrarCategorias = grupos.size > 1;
+
+  const tbody = document.getElementById("hi-items");
+  tbody.innerHTML = "";
+  [...grupos.values()]
+    .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta))
+    .forEach(({ etiqueta, items: itemsCat }) => {
+      if (mostrarCategorias) {
+        const trCat = document.createElement("tr");
+        trCat.className = "hi-categoria";
+        trCat.innerHTML = `<td colspan="4">${escapeHtml(etiqueta)}</td>`;
+        tbody.appendChild(trCat);
+      }
+      itemsCat
+        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+        .forEach(it => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="hi-col-check">&#9633;</td>
+            <td>${escapeHtml(it.nombre)}</td>
+            <td class="hi-col-num num-mono">${it.cantidadPedida}</td>
+            <td>${escapeHtml(etiquetaUnidad(it.unidad))}</td>`;
+          tbody.appendChild(tr);
+        });
+    });
+
+  prepararImpresion("hoja-impresion");
+  window.print();
+});
+
+// Remito de envío: lo que realmente se manda, comparado con lo pedido.
+// Se imprime solo (automático) al confirmar el envío, y el botón "Imprimir
+// remito" del modal permite reimprimirlo después si hace falta.
+function imprimirRemito(p, items, notaGeneral, fechaEnvioTexto){
+  document.getElementById("rm-numero").textContent = "#" + (p.numero ?? "—");
+  document.getElementById("rm-sucursal").textContent = p.sucursalNombre || "";
+  document.getElementById("rm-fecha-pedido").textContent = fechaLegible(p.creadoEn);
+  document.getElementById("rm-fecha-envio").textContent = fechaEnvioTexto;
+
+  const notaSucursal = (p.notaSucursalPedido || "").trim();
+  const wrapNotaSucursal = document.getElementById("rm-nota-sucursal-wrap");
+  wrapNotaSucursal.classList.toggle("hidden", !notaSucursal);
+  document.getElementById("rm-nota-sucursal").textContent = notaSucursal;
+
+  const notaCentral = (notaGeneral || "").trim();
+  const wrapNotaCentral = document.getElementById("rm-nota-central-wrap");
+  wrapNotaCentral.classList.toggle("hidden", !notaCentral);
+  document.getElementById("rm-nota-central").textContent = notaCentral;
+
+  const cantDif = items.filter(it => Number(it.cantidadEnviada) !== Number(it.cantidadPedida)).length;
+  const badgeResumen = cantDif > 0
+    ? `<span class="hi-badge hi-badge-dif">${cantDif} con diferencia${cantDif === 1 ? "" : "s"}</span>`
+    : `<span class="hi-badge hi-badge-ok">✓ Sin diferencias</span>`;
+  document.getElementById("rm-resumen").innerHTML =
+    `<span class="hi-resumen-texto">${items.length}${items.length === 1 ? " producto" : " productos"}</span>${badgeResumen}`;
+
+  const tbody = document.getElementById("rm-items");
+  tbody.innerHTML = "";
+  items
+    .slice()
+    .sort((a, b) => a.nombre.localeCompare(b.nombre))
+    .forEach(it => {
+      const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+      const difiere = Number(enviada) !== Number(it.cantidadPedida);
+      const tr = document.createElement("tr");
+      if (difiere) tr.className = "hi-fila-dif";
+      tr.innerHTML = `
+        <td>${escapeHtml(it.nombre)} ${escapeHtml(etiquetaUnidad(it.unidad))}</td>
+        <td class="hi-col-num num-mono">${it.cantidadPedida}</td>
+        <td class="hi-col-num num-mono">${enviada}</td>
+        <td>${escapeHtml(it.notaItem || "")}</td>`;
+      tbody.appendChild(tr);
+    });
+
+  prepararImpresion("hoja-remito");
+  window.print();
+}
+
+document.getElementById("btn-imprimir-remito").addEventListener("click", () => {
+  const p = pedidoActivo;
+  imprimirRemito(p, p.items || [], p.notaCentral || "", fechaLegible(p.actualizadoEn));
+});
+
+// ================= HISTORIAL =================
+// A diferencia de la hoja de producción o el remito (que son de UN pedido),
+// esta pestaña junta todos los pedidos de una sucursal para ver qué pidió
+// a lo largo del tiempo. Para que esto escale con miles de pedidos, NO se
+// mantiene un listener sobre toda la colección: el conteo por sucursal se
+// pide con una consulta de agregación (cuenta en el servidor sin bajar los
+// documentos) y el detalle de cada sucursal se trae de a tandas, solo
+// cuando se la selecciona.
+//
+// Se agrupa por el nombre que cada pedido guardó al crearse (sucursalNombre),
+// igual que en la pestaña "Pedidos": si central renombra una sucursal después,
+// los pedidos viejos siguen agrupados con el nombre que tenían en ese momento.
+let todasSucursales = [];
+let conteosCargados = false;
+let conteosPorSucursal = new Map(); // nombre -> cantidad de pedidos
+let sucursalHistorialSeleccionada = null;
+let historialPedidos = [];
+let historialUltimoDoc = null;
+let historialHayMas = false;
+let historialCargando = false;
+const TANDA_HISTORIAL = 100;
+
+// Un solo read por sucursal (las consultas de agregación se facturan por
+// consulta, no por documento leído), así que esto es barato sin importar
+// cuántos pedidos tenga cada una.
+async function cargarConteosSucursales(){
+  conteosCargados = true;
+  const cont = document.getElementById("historial-sucursales");
+  cont.innerHTML = `<div class="skeleton-fila"><span class="spinner spinner-oscuro"></span>Contando pedidos por sucursal…</div>`;
+
+  const nombres = [...new Set(todasSucursales.map(s => s.nombre || "Sucursal"))].sort((a, b) => a.localeCompare(b));
+  try {
+    const resultados = await Promise.all(nombres.map(async (nombre) => {
+      const snap = await getCountFromServer(query(collection(db, "pedidos"), where("sucursalNombre", "==", nombre)));
+      return [nombre, snap.data().count];
+    }));
+    conteosPorSucursal = new Map(resultados);
+  } catch (err) {
+    console.error("Error contando pedidos por sucursal:", err);
+    cont.innerHTML = `<p class="text-sm" style="color:var(--rojo)">No se pudo cargar el historial. Probá de nuevo con "Actualizar".</p>`;
+    conteosCargados = false;
+    return;
+  }
+  renderListaSucursalesHistorial();
+}
+
+function renderListaSucursalesHistorial(){
+  const cont = document.getElementById("historial-sucursales");
+  cont.innerHTML = "";
+  if (conteosPorSucursal.size === 0) {
+    cont.innerHTML = `<p class="text-sm" style="color:var(--tinta-suave)">Todavía no hay sucursales.</p>`;
+    return;
+  }
+  [...conteosPorSucursal.entries()].forEach(([nombre, cantidad]) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "historial-sucursal-btn" + (nombre === sucursalHistorialSeleccionada ? " activo" : "");
+    card.innerHTML = `
+      <div class="historial-sucursal-nombre">${escapeHtml(nombre)}</div>
+      <div class="historial-sucursal-cantidad">${cantidad} ${cantidad === 1 ? "pedido" : "pedidos"}</div>`;
+    card.addEventListener("click", () => abrirHistorialSucursal(nombre));
+    cont.appendChild(card);
+  });
+}
+
+document.getElementById("btn-actualizar-historial").addEventListener("click", () => {
+  cargarConteosSucursales();
+  if (sucursalHistorialSeleccionada) abrirHistorialSucursal(sucursalHistorialSeleccionada);
+});
+
+function abrirHistorialSucursal(nombre){
+  sucursalHistorialSeleccionada = nombre;
+  historialPedidos = [];
+  historialUltimoDoc = null;
+  historialHayMas = false;
+  renderListaSucursalesHistorial();
+  document.getElementById("historial-detalle").innerHTML =
+    `<div class="historial-detalle-cargando"><span class="spinner spinner-oscuro"></span>Cargando pedidos de ${escapeHtml(nombre)}…</div>`;
+  cargarPaginaHistorial(nombre, true);
+}
+
+// Trae una tanda de pedidos de ESA sucursal (no de todas), ordenada por
+// fecha descendente, usando startAfter para pedir la siguiente página.
+async function cargarPaginaHistorial(nombre, esPrimeraPagina){
+  if (historialCargando) return;
+  historialCargando = true;
+  try {
+    const restricciones = [
+      where("sucursalNombre", "==", nombre),
+      orderBy("creadoEn", "desc"),
+      limit(TANDA_HISTORIAL),
+    ];
+    if (!esPrimeraPagina && historialUltimoDoc) restricciones.push(startAfter(historialUltimoDoc));
+
+    const snap = await getDocs(query(collection(db, "pedidos"), ...restricciones));
+    const nuevos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    historialPedidos = esPrimeraPagina ? nuevos : [...historialPedidos, ...nuevos];
+    historialUltimoDoc = snap.docs[snap.docs.length - 1] || historialUltimoDoc;
+    historialHayMas = nuevos.length >= TANDA_HISTORIAL;
+    renderHistorialDetalle(nombre, historialPedidos, historialHayMas);
+  } catch (err) {
+    console.error("Error leyendo el historial de la sucursal:", err);
+    // El motivo más común es que falte crear, en Firebase, el índice
+    // compuesto que pide esta consulta (sucursalNombre + creadoEn); la
+    // consola del navegador trae el link para crearlo con un click.
+    document.getElementById("historial-detalle").innerHTML =
+      `<div class="historial-detalle-vacio" style="color:var(--rojo); border-color:var(--rojo)">No se pudo cargar el historial de esta sucursal. Probá de nuevo.</div>`;
+  } finally {
+    historialCargando = false;
+  }
+}
+
+function renderHistorialDetalle(nombre, pedidos, hayMas){
+  const cont = document.getElementById("historial-detalle");
+
+  // Total acumulado por producto, sumando lo pedido y lo efectivamente
+  // enviado en los pedidos YA CARGADOS de esta sucursal. Si todavía hay
+  // tandas sin traer, se avisa para no mostrar un total parcial como si
+  // fuera el definitivo.
+  const totales = new Map(); // "nombre|unidad" -> { nombre, unidad, pedida, enviada }
+  pedidos.forEach(p => (p.items || []).forEach(it => {
+    const key = it.nombre + "|" + it.unidad;
+    if (!totales.has(key)) totales.set(key, { nombre: it.nombre, unidad: it.unidad, pedida: 0, enviada: 0 });
+    const t = totales.get(key);
+    t.pedida += Number(it.cantidadPedida) || 0;
+    t.enviada += Number(it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida) || 0;
+  }));
+  const filasTotales = [...totales.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  cont.innerHTML = `
+    <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+      <h2 class="font-display text-lg font-700">${escapeHtml(nombre)}</h2>
+      <button type="button" id="btn-imprimir-historial" class="px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Imprimir historial cargado</button>
+    </div>
+
+    <div class="ticket p-4 mb-6">
+      <div class="text-xs font-600 mb-3" style="color:var(--tinta-suave)">
+        Total pedido por producto (sobre los ${pedidos.length} pedido${pedidos.length === 1 ? "" : "s"} cargados${hayMas ? " — hay más, tocá \"Cargar más pedidos\" para incluirlos en el total" : ""})
+      </div>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
+            <th class="py-1.5 font-600">Producto</th>
+            <th class="py-1.5 font-600 text-right">Pedido (total)</th>
+            <th class="py-1.5 font-600 text-right">Enviado (total)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filasTotales.map(t => `
+            <tr class="border-b" style="border-color:var(--linea)">
+              <td class="py-1.5">${escapeHtml(t.nombre)} <span class="text-xs" style="color:var(--tinta-suave)">(${escapeHtml(etiquetaUnidad(t.unidad))})</span></td>
+              <td class="py-1.5 text-right num-mono">${t.pedida}</td>
+              <td class="py-1.5 text-right num-mono">${t.enviada}</td>
+            </tr>`).join("") || `<tr><td colspan="3" class="py-2 text-sm" style="color:var(--tinta-suave)">Todavía no hizo ningún pedido.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="text-xs font-600 mb-2" style="color:var(--tinta-suave)">Pedidos cargados (${pedidos.length})</div>
+    <div class="space-y-2" id="historial-lista-pedidos"></div>
+    <div class="mt-4">
+      <button type="button" id="btn-cargar-mas-historial" class="${hayMas ? "" : "hidden"} px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Cargar más pedidos</button>
+    </div>
+  `;
+
+  const listaCont = cont.querySelector("#historial-lista-pedidos");
+  if (pedidos.length === 0) {
+    listaCont.innerHTML = `<p class="text-sm" style="color:var(--tinta-suave)">Sin pedidos todavía.</p>`;
+  }
+  pedidos.forEach(p => {
+    const row = document.createElement("div");
+    row.className = `ticket px-4 py-3 flex items-center justify-between cursor-pointer flex-wrap gap-2 ${p.estado}`;
+    row.innerHTML = `
+      <div class="flex items-center gap-4">
+        <div class="num-mono text-lg font-700">#${p.numero ?? "—"}</div>
+        <div class="text-xs" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos</div>
+      </div>
+      <div class="flex items-center gap-2">
+        ${tieneDiferencias(p) ? '<span class="badge badge-diferencia">Diferencia</span>' : ''}
+        ${badgeHtml(p.estado)}
+      </div>`;
+    row.addEventListener("click", () => abrirModal(p));
+    listaCont.appendChild(row);
+  });
+
+  document.getElementById("btn-imprimir-historial").addEventListener("click", () => imprimirHistorial(nombre, pedidos));
+  document.getElementById("btn-cargar-mas-historial")?.addEventListener("click", () => cargarPaginaHistorial(nombre, false));
+}
+
+// Imprime los pedidos YA CARGADOS de una sucursal en una sola hoja
+// (agrupados por pedido), a diferencia de "btn-imprimir" e "imprimirRemito"
+// que son de un pedido puntual. Si hay más tandas sin cargar, conviene
+// traerlas antes de imprimir para que el reporte quede completo.
+function imprimirHistorial(nombre, pedidos){
+  document.getElementById("hh-sucursal").textContent = nombre;
+  document.getElementById("hh-cantidad").textContent = pedidos.length;
+
+  const fechas = pedidos.map(p => p.creadoEn?.toMillis?.()).filter(Boolean);
+  document.getElementById("hh-periodo").textContent = fechas.length
+    ? `${fechaLegibleMs(Math.min(...fechas))} — ${fechaLegibleMs(Math.max(...fechas))}`
+    : "—";
+  document.getElementById("hh-fecha-impresion").textContent = new Date().toLocaleString("es-AR", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+
+  const tbody = document.getElementById("hh-items");
+  tbody.innerHTML = "";
+  let totalItems = 0;
+  pedidos
+    .slice()
+    .sort((a, b) => (a.creadoEn?.toMillis?.() ?? 0) - (b.creadoEn?.toMillis?.() ?? 0))
+    .forEach(p => {
+      const trCab = document.createElement("tr");
+      trCab.className = "hi-categoria";
+      trCab.innerHTML = `<td colspan="4">Pedido #${p.numero ?? "—"} — ${fechaLegible(p.creadoEn)} — ${escapeHtml(textoEstado[p.estado] || p.estado)}</td>`;
+      tbody.appendChild(trCab);
+
+      const items = p.items || [];
+      if (items.length === 0) {
+        const trVacio = document.createElement("tr");
+        trVacio.innerHTML = `<td colspan="4" style="color:#777">Sin productos.</td>`;
+        tbody.appendChild(trVacio);
+        return;
+      }
+      items
+        .slice()
+        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+        .forEach(it => {
+          totalItems++;
+          const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+          const difiere = Number(enviada) !== Number(it.cantidadPedida);
+          const tr = document.createElement("tr");
+          if (difiere) tr.className = "hi-fila-dif";
+          tr.innerHTML = `
+            <td>${escapeHtml(it.nombre)} ${escapeHtml(etiquetaUnidad(it.unidad))}</td>
+            <td class="hi-col-num num-mono">${it.cantidadPedida}</td>
+            <td class="hi-col-num num-mono">${enviada}</td>
+            <td>${escapeHtml(it.notaItem || "")}</td>`;
+          tbody.appendChild(tr);
+        });
+    });
+
+  document.getElementById("hh-resumen").textContent =
+    pedidos.length + (pedidos.length === 1 ? " pedido" : " pedidos") + " · " + totalItems + " líneas de producto en total";
+
+  prepararImpresion("hoja-historial");
+  window.print();
+}
+
+// ---------- Listeners de datos ----------
+// "productos" y "sucursales" son colecciones chicas (una fila por producto
+// del catálogo o por sucursal que existe), así que se pueden escuchar
+// enteras sin problema. "pedidos" es la que crece sin límite con el tiempo,
+// así que esa se pide de a tandas (ver suscribirPedidos) y no acá.
+function iniciarListeners(){
+  onSnapshot(
+    query(collection(db, "productos"), orderBy("nombre")),
+    (snap) => {
+      catalogoProductos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderProductos(catalogoProductos);
+    },
+    (err) => console.error("Error leyendo productos:", err)
+  );
+  suscribirPedidos();
+  onSnapshot(
+    collection(db, "sucursales"),
+    (snap) => {
+      todasSucursales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderSucursales(todasSucursales);
+    },
+    (err) => console.error("Error leyendo sucursales:", err)
+  );
+}
+</script>
+</body>
+</html>
