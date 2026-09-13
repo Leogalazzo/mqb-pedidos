@@ -128,7 +128,12 @@ aside{ background:var(--bg-elevado); }
 
 /* Mientras el menú mobile está abierto, evitamos que la página de atrás
    scrollee (el sidebar ya tiene su propio scroll interno si hace falta). */
-body.sin-scroll{ overflow:hidden; }
+body.sin-scroll{
+  position:fixed;
+  left:0; right:0;
+  overflow:hidden;
+  width:100%;
+}
 
 /* Logo del sidebar: centrado y con más presencia que un ícono de
    navegación — es la marca, va arriba de todo y bien visible. */
