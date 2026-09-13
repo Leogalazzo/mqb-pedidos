@@ -45,8 +45,14 @@
   --sombra-modal: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.04);
 }
 
-html{ color-scheme: dark; }
+html{ color-scheme: dark; overflow-x:hidden; }
 
+/* Importante: overflow-x:hidden va en <html>, NUNCA en <body>. Ponerlo en
+   body es justo lo que hace que en mobile (sobre todo iOS Safari) los
+   elementos position:fixed -como el botón hamburguesa- dejen de quedar
+   fijos y empiecen a moverse junto con el scroll de la página: al
+   ponerle overflow a body, el navegador lo toma como el contenedor de
+   scroll real en vez de html, y ahí el fixed se rompe. */
 html,body{
   color:var(--tinta);
   font-family:'Inter',sans-serif;
@@ -65,9 +71,64 @@ body{
 .font-display{ font-family:'Space Grotesk',sans-serif; letter-spacing:-.01em; }
 .num-mono{ font-family:'Space Grotesk',sans-serif; font-variant-numeric: tabular-nums; }
 
+/* main es flex-1 dentro de ".flex" (junto al sidebar). Por default, un
+   flex item no se achica más allá del ancho mínimo de su contenido interno
+   (el bug de "min-width:auto" de flexbox) — si algo adentro no puede
+   envolver (texto largo, un control con nowrap, etc.), ESE ancho mínimo
+   se filtra hacia arriba y termina estirando toda la página en mobile.
+   min-width:0 corta esa propagación acá, en la raíz. */
+main{ min-width:0; }
+
 /* Sidebar: un tono apenas distinto del fondo, con un filo sutil
    para separar la navegación del contenido. */
 aside{ background:var(--bg-elevado); }
+
+/* --- Sidebar responsive: panel lateral en mobile, fijo en desktop ---
+   Por debajo de 768px el sidebar sale de flujo y se convierte en un panel
+   que entra desde la izquierda por encima del contenido (clase
+   .sidebar-abierto la desliza a la vista); por encima de 768px vuelve a
+   comportarse como columna fija de siempre. */
+@media (max-width:767px){
+  .sidebar{
+    position:fixed;
+    top:0; left:0; bottom:0;
+    z-index:40;
+    overflow-y:auto;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    box-shadow:var(--sombra-modal);
+  }
+  .sidebar.sidebar-abierto{ transform:translateX(0); }
+}
+
+/* Botón hamburguesa: fijo arriba a la izquierda, solo en mobile. */
+.menu-hamburguesa{
+  position:fixed; top:1rem; left:1rem; z-index:35;
+  width:2.5rem; height:2.5rem;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:8px;
+  background:var(--papel-alto);
+  border:1px solid var(--linea);
+  color:var(--tinta);
+}
+.menu-hamburguesa:hover{ border-color:var(--linea-fuerte); }
+
+/* Botón de cerrar dentro del sidebar, arriba a la derecha (solo mobile). */
+.btn-cerrar-menu{
+  position:absolute; top:1rem; right:1rem;
+  color:var(--tinta-suave);
+}
+.btn-cerrar-menu:hover{ color:var(--tinta); }
+
+/* Fondo oscuro detrás del sidebar abierto en mobile. */
+.sidebar-overlay{
+  position:fixed; inset:0; z-index:30;
+  background:rgba(0,0,0,.6);
+}
+
+/* Mientras el menú mobile está abierto, evitamos que la página de atrás
+   scrollee (el sidebar ya tiene su propio scroll interno si hace falta). */
+body.sin-scroll{ overflow:hidden; }
 
 /* Logo del sidebar: centrado y con más presencia que un ícono de
    navegación — es la marca, va arriba de todo y bien visible. */
@@ -265,6 +326,32 @@ button:active{ transform: translateY(1px); }
 @media (max-width:640px){
   .filtros-fila{ align-items:flex-start; }
   .filtros-etiqueta{ width:auto; margin-bottom:.3rem; flex-basis:100%; }
+
+  /* El segmentado (Rango) es un solo borde en forma de píldora que
+     envuelve a sus 4 botones; si esa fila se corta en 2 líneas (porque
+     no entran los 4 en el ancho disponible), el border-radius de 999px
+     y el overflow:hidden quedan pensados para una sola línea y el
+     grupo se ve roto/cortado. En vez de envolver, lo hacemos scrollear
+     horizontal en una sola fila: se ve como una píldora entera y se
+     desliza con el dedo si no entra todo. */
+  .segmentado{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    max-width:100%;
+    min-width:0;
+    scrollbar-width:none;
+  }
+  .segmentado::-webkit-scrollbar{ display:none; }
+  .segmentado .segmento-btn{
+    flex-shrink:0;
+    white-space:nowrap;
+  }
+
+  /* Los chips de Estado si pueden envolver en varias líneas sin problema
+     (cada uno tiene su propio borde independiente), pero les bajamos un
+     poco el tamaño para que entren más por fila. */
+  .chip-btn{ padding:.35rem .7rem; font-size:.74rem; }
 }
 
 /* Estado vacío: centrado, con ícono dentro de un halo tenue de la luz
@@ -281,6 +368,16 @@ button:active{ transform: translateY(1px); }
 .estado-vacio-icono svg{ width:30px; height:30px; color:var(--tinta-tenue); }
 .estado-vacio-texto{ font-size:.9rem; font-weight:600; color:var(--tinta-suave); }
 
+/* Envoltorio para las tablas que se muestran en pantalla (no las hojas de
+   impresión, que tienen su propio manejo aparte): en vez de que la tabla
+   fuerce el ancho de toda la página en mobile (o se aplaste hasta quedar
+   ilegible), scrollea horizontal solo ella, contenida en su tarjeta. */
+.tabla-scroll{
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.tabla-scroll table{ min-width:480px; }
+
 .badge{
   display:inline-flex; align-items:center; gap:.4rem;
   font-size:.72rem; font-weight:600; letter-spacing:.01em;
@@ -296,6 +393,100 @@ button:active{ transform: translateY(1px); }
 .badge-diferencia{ background:var(--rojo-suave); color:var(--rojo); }
 .badge-cancelado{ background:var(--linea); color:var(--tinta-suave); }
 .badge-rechazado{ background:var(--rojo-suave); color:var(--rojo); }
+
+/* Estructura del modal de pedido: en vez de que TODO el modal scrollee
+   como un bloque (header, botones e historial incluidos), lo armamos en
+   columna con altura máxima = viewport. El header, los botones y el
+   historial (.modal-fijo) mantienen su tamaño natural; el único bloque
+   que puede achicarse y scrollear -si hace falta- es .modal-cuerpo
+   (tabla de items + notas), que es lo único de largo variable. Así el
+   modal en sí nunca "scrollea": a lo sumo scrollea su contenido interno. */
+.modal-caja{
+  max-height:92dvh;
+  display:flex;
+  flex-direction:column;
+}
+.modal-fijo{ flex-shrink:0; }
+.modal-cuerpo{
+  overflow-y:auto;
+  flex:1 1 auto;
+  min-height:0; /* clave: permite que este bloque se achique en vez de empujar el alto del modal */
+}
+
+/* Botones de acción del modal: en vez de un flex-wrap simple (que con
+   textos largos como "Imprimir hoja de producción" termina mostrando
+   un botón por fila en mobile), los ordenamos de a 2 por fila. min-width:0
+   pisa el mínimo por defecto de un flex item (que toma el ancho del texto
+   sin cortar) para que, si no entra, el texto del botón haga wrap en dos
+   líneas ADENTRO del botón en vez de mandar al otro botón a una fila nueva. */
+.modal-botones{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.5rem;
+}
+.modal-botones button{
+  flex:1 1 calc(50% - .25rem);
+  min-width:0;
+  text-align:center;
+}
+
+/* Campo de contraseña del login, con el ojito para mostrar/ocultar lo
+   tipeado. El input le deja lugar al botón con padding derecho, y el
+   botón se centra verticalmente encima suyo. */
+/* Pantalla de login: min-height con dvh (viewport dinámico) en vez de
+   min-h-screen (100vh) — en mobile, 100vh no descuenta la barra de
+   direcciones del navegador, así que el contenido centrado quedaba más
+   alto de lo que en realidad se ve y aparecía un scroll de sobra/raro
+   apenas se cargaba la página o se mostraba/ocultaba esa barra. dvh se
+   ajusta al alto real visible en cada momento. */
+.pantalla-login{ min-height:100vh; min-height:100dvh; }
+
+/* Tarjeta del formulario de login: a diferencia de ".ticket" (que se usa
+   para las fichas de pedido con su borde punteado), acá va un diseño
+   más simple para un formulario: borde parejo y una franja de acento
+   dorado arriba, en vez del corte lateral tipo comanda. */
+.tarjeta-login{
+  position:relative;
+  background:var(--papel-alto);
+  border:1px solid var(--linea);
+  border-radius:var(--radio-tarjeta);
+  box-shadow:var(--sombra-tarjeta);
+  overflow:hidden;
+}
+.tarjeta-login::before{
+  content:"";
+  position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg, var(--ambar-oscuro), var(--ambar));
+}
+
+/* Campos de usuario/contraseña con un ícono a la izquierda, para que se
+   lean más rápido de un vistazo y no sean dos inputs idénticos. */
+.campo-con-icono{ position:relative; }
+.campo-con-icono .icono-campo{
+  position:absolute; top:50%; left:.75rem;
+  transform:translateY(-50%);
+  color:var(--tinta-suave);
+  pointer-events:none;
+}
+.campo-con-icono input{ padding-left:2.5rem; }
+
+.campo-clave{ position:relative; }
+.campo-clave input{ padding-right:2.5rem; }
+.btn-ver-clave{
+  position:absolute;
+  top:50%; right:.5rem;
+  transform:translateY(-50%);
+  display:flex; align-items:center; justify-content:center;
+  width:2rem; height:2rem;
+  color:var(--tinta-suave);
+  border-radius:6px;
+}
+.btn-ver-clave:hover{ color:var(--tinta); }
+
+/* Oculta el ícono nativo de "revelar contraseña" de Edge/IE para que no
+   se superponga con nuestro propio botón del ojo. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear{ display:none; }
 
 /* Texto de ayuda contextual arriba de la tabla del modal de pedido: qué
    corresponde hacer (o qué pasó) en la etapa actual del pedido. */
