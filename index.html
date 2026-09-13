@@ -6,6 +6,15 @@
 <title>Ingresar</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="estilos.css">
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#084788">
+<link rel="icon" type="image/png" sizes="192x192" href="/192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/512.png">
+<link rel="apple-touch-icon" href="/192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MQB Pedidos">
 </head>
 <body class="pantalla-login flex items-center justify-center px-4 py-10">
 
@@ -116,6 +125,17 @@ form.addEventListener("submit", (e) => {
     mostrarError("Usuario o contraseña incorrectos.");
   });
 });
+</script>
+<script>
+// Registra el service worker para que la app sea instalable (ícono propio,
+// se abre sin barra del navegador) y abra un instante aunque no haya señal.
+// Si falla (por ejemplo, mirando el sitio en un entorno sin HTTPS), no pasa
+// nada: la app funciona igual, solo sin esta parte.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
