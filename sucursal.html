@@ -11,9 +11,27 @@
 
 <div id="cargando-pagina"><span class="spinner spinner-oscuro"></span>Cargando…</div>
 
+<!-- Botón hamburguesa: solo visible en mobile, fijo arriba a la izquierda -->
+<button id="btn-menu" class="menu-hamburguesa md:hidden" aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <line x1="3" y1="12" x2="21" y2="12"></line>
+    <line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+</button>
+
+<!-- Overlay detrás del sidebar en mobile: tocarlo cierra el menú -->
+<div id="sidebar-overlay" class="sidebar-overlay hidden md:hidden"></div>
+
 <div class="flex min-h-screen">
   <!-- Sidebar -->
-  <aside class="w-64 shrink-0 border-r px-5 py-7 flex flex-col justify-between" style="border-color:var(--linea)">
+  <aside id="sidebar" class="sidebar w-64 shrink-0 border-r px-5 py-7 flex flex-col justify-between" style="border-color:var(--linea)">
+    <button id="btn-cerrar-menu" class="btn-cerrar-menu md:hidden" aria-label="Cerrar menú">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
     <div>
       <div class="sidebar-logo">
         <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers">
@@ -40,17 +58,25 @@
   </aside>
 
   <!-- Main -->
-  <main class="flex-1 px-8 py-6">
+  <main class="flex-1 px-4 pt-20 pb-6 md:px-8 md:pt-6">
 
     <!-- TAB NUEVO PEDIDO -->
     <section id="tab-nuevo">
       <h1 class="font-display text-2xl font-700 mb-1">Nuevo pedido a central</h1>
       <p class="text-sm mb-5" style="color:var(--tinta-suave)">Cargá la cantidad de cada producto que necesitás. Dejá en 0 lo que no pedís.</p>
       <p id="aviso-borrador-recuperado" class="text-sm mb-5 hidden" style="color:var(--ambar)">Recuperamos un pedido que habías empezado a cargar y todavía no enviaste.</p>
-      <div class="mb-4 max-w-sm">
+
+      <div class="mb-2 flex flex-col sm:flex-row sm:items-center gap-3">
         <input type="text" id="buscador-productos" placeholder="Buscar producto por nombre o categoría…"
-          class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)">
+          class="w-full sm:w-72 border rounded px-3 py-2 text-sm" style="border-color:var(--linea)">
+        <div class="flex items-center gap-3 flex-wrap">
+          <button id="btn-enviar-pedido" class="px-5 py-2.5 rounded text-white font-600 text-sm" style="background:var(--ambar-oscuro)">Enviar pedido</button>
+          <button id="btn-guardar-borrador" type="button" class="px-4 py-2.5 rounded border font-600 text-sm" style="border-color:var(--linea)">Guardar para después</button>
+        </div>
       </div>
+      <p id="confirmacion-envio" class="text-sm mb-4 hidden" style="color:var(--verde)">Pedido enviado a central ✓</p>
+      <p id="confirmacion-borrador" class="text-sm mb-4 hidden" style="color:var(--tinta-suave)">Pedido guardado. Iniciá sesión desde cualquier otra computadora para continuarlo.</p>
+
       <div id="lista-catalogo" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6"></div>
       <div id="catalogo-vacio" class="estado-vacio hidden">
         <div class="estado-vacio-icono">
@@ -62,18 +88,6 @@
         </div>
         <p class="estado-vacio-texto" id="catalogo-vacio-texto">Central todavía no cargó productos disponibles</p>
       </div>
-
-      <div class="mb-4 max-w-lg">
-        <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Nota del pedido (opcional)</label>
-        <textarea id="nota-pedido" rows="2" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)"></textarea>
-      </div>
-      <div class="flex items-center gap-3 flex-wrap">
-        <button id="btn-enviar-pedido" class="px-5 py-2.5 rounded text-white font-600" style="background:var(--ambar-oscuro)">Enviar pedido</button>
-        <button id="btn-guardar-borrador" type="button" class="px-4 py-2.5 rounded border font-600 text-sm" style="border-color:var(--linea)">Guardar para después</button>
-        <span id="resumen-seleccion" class="text-sm" style="color:var(--tinta-suave)"></span>
-      </div>
-      <p id="confirmacion-envio" class="text-sm mt-3 hidden" style="color:var(--verde)">Pedido enviado a central ✓</p>
-      <p id="confirmacion-borrador" class="text-sm mt-3 hidden" style="color:var(--tinta-suave)">Pedido guardado. Iniciá sesión desde cualquier otra computadora para continuarlo.</p>
     </section>
 
     <!-- TAB MIS PEDIDOS -->
@@ -95,7 +109,7 @@
 
 <!-- Modal detalle -->
 <div id="modal" class="fixed inset-0 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.65)">
-  <div class="rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
+  <div class="rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
     <div class="flex items-start justify-between mb-1">
       <div>
         <div class="font-display text-xl font-700">Pedido <span id="modal-numero" class="num-mono"></span></div>
@@ -105,17 +119,19 @@
     </div>
     <div id="modal-badge" class="mb-4"></div>
 
-    <table class="w-full text-sm mb-4">
-      <thead>
-        <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
-          <th class="py-2 font-600">Producto</th>
-          <th class="py-2 font-600 text-right">Pedido</th>
-          <th class="py-2 font-600 text-right">Enviado</th>
-          <th class="py-2 font-600">Nota de central</th>
-        </tr>
-      </thead>
-      <tbody id="modal-items"></tbody>
-    </table>
+    <div class="tabla-scroll mb-4">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
+            <th class="py-2 font-600">Producto</th>
+            <th class="py-2 font-600 text-right">Pedido</th>
+            <th class="py-2 font-600 text-right">Enviado</th>
+            <th class="py-2 font-600">Nota de central</th>
+          </tr>
+        </thead>
+        <tbody id="modal-items"></tbody>
+      </table>
+    </div>
 
     <div id="modal-nota-propia-wrap" class="mb-4 text-sm hidden">
       <span class="font-600">Tu nota al pedir:</span> <span id="modal-nota-propia"></span>
@@ -139,6 +155,30 @@
     <div class="pt-4 border-t" style="border-color:var(--linea)">
       <div class="text-xs font-600 mb-2" style="color:var(--tinta-suave)">Historial</div>
       <ul id="modal-historial" class="text-xs space-y-1" style="color:var(--tinta-suave)"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: confirmar y enviar el pedido nuevo que se está armando -->
+<div id="modal-confirmar-pedido" class="fixed inset-0 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.65)">
+  <div class="modal-caja rounded-xl max-w-lg w-full p-4 sm:p-6" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
+    <div class="flex items-start justify-between mb-3 modal-fijo">
+      <div class="font-display text-xl font-700">Confirmar pedido</div>
+      <button id="modal-confirmar-pedido-cerrar" class="text-2xl leading-none" style="color:var(--tinta-suave)">&times;</button>
+    </div>
+
+    <div class="modal-cuerpo">
+      <div id="confirmar-pedido-items" class="mb-4"></div>
+
+      <div class="mb-2">
+        <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Nota del pedido (opcional)</label>
+        <textarea id="nota-pedido" rows="2" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-botones modal-fijo">
+      <button id="btn-confirmar-envio-pedido" class="px-5 py-2.5 rounded text-white font-600 text-sm" style="background:var(--ambar-oscuro)">Confirmar y enviar</button>
+      <button id="btn-cancelar-confirmar-pedido" type="button" class="px-4 py-2.5 rounded border font-600 text-sm" style="border-color:var(--linea)">Seguir editando</button>
     </div>
   </div>
 </div>
@@ -176,6 +216,38 @@ onAuthStateChanged(auth, async (user) => {
 });
 document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
 
+// ---------- Menú hamburguesa (mobile) ----------
+// Va antes de "Tabs" a propósito: esa sección hace .click() en el primer tab
+// apenas se define, y ese click llama a cerrarMenu() — si sidebarEl y compañía
+// se declararan después, sería una referencia a una const todavía no
+// inicializada (TDZ) y explotaría al cargar la página.
+// El sidebar en mobile es un panel que entra desde la izquierda (ver .sidebar
+// en estilos.css). En desktop (md:) queda siempre visible y estos botones
+// no se muestran, así que esta lógica no tiene efecto ahí.
+const btnMenu = document.getElementById("btn-menu");
+const btnCerrarMenu = document.getElementById("btn-cerrar-menu");
+const sidebarEl = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
+
+function abrirMenu(){
+  sidebarEl.classList.add("sidebar-abierto");
+  sidebarOverlay.classList.remove("hidden");
+  btnMenu.setAttribute("aria-expanded", "true");
+  document.body.classList.add("sin-scroll");
+}
+function cerrarMenu(){
+  sidebarEl.classList.remove("sidebar-abierto");
+  sidebarOverlay.classList.add("hidden");
+  btnMenu.setAttribute("aria-expanded", "false");
+  document.body.classList.remove("sin-scroll");
+}
+btnMenu.addEventListener("click", abrirMenu);
+btnCerrarMenu.addEventListener("click", cerrarMenu);
+sidebarOverlay.addEventListener("click", cerrarMenu);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") cerrarMenu();
+});
+
 // ---------- Tabs ----------
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -183,6 +255,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.classList.add("activo");
     document.getElementById("tab-nuevo").classList.toggle("hidden", btn.dataset.tab !== "nuevo");
     document.getElementById("tab-mios").classList.toggle("hidden", btn.dataset.tab !== "mios");
+    cerrarMenu(); // en mobile, elegir una sección cierra el sidebar
   });
 });
 document.querySelector('.tab-btn[data-tab="nuevo"]').click();
@@ -264,7 +337,6 @@ function renderCatalogo(){
       const valor = Number(input.value) || 0;
       cantidadesPedido.set(p.id, valor);
       card.classList.toggle("con-cantidad", valor > 0);
-      renderResumenSeleccion();
     };
 
     card.querySelector('[data-accion="restar"]').addEventListener("click", () => {
@@ -280,27 +352,21 @@ function renderCatalogo(){
     cont.appendChild(card);
   });
 
-  renderResumenSeleccion();
 }
 
 // Productos con cantidad cargada, incluso los que el buscador dejó ocultos
 // en este momento — así la sucursal no pierde de vista lo que ya sumó en
 // una búsqueda anterior y termina enviando un pedido incompleto sin darse
 // cuenta.
-function renderResumenSeleccion(){
-  let total = 0;
-  cantidadesPedido.forEach(cantidad => { if (cantidad > 0) total++; });
-  document.getElementById("resumen-seleccion").textContent = total > 0
-    ? `${total} producto${total === 1 ? "" : "s"} seleccionado${total === 1 ? "" : "s"}`
-    : "";
-}
 
 document.getElementById("buscador-productos").addEventListener("input", (e) => {
   terminoBusquedaProductos = e.target.value;
   renderCatalogo();
 });
 
-document.getElementById("btn-enviar-pedido").addEventListener("click", async (e) => {
+// Arma la lista de items con cantidad > 0, lista para mandar a Firestore o
+// para mostrar en el resumen del modal de confirmación.
+function itemsSeleccionados(){
   const items = [];
   cantidadesPedido.forEach((cantidad, productoId) => {
     if (cantidad > 0) {
@@ -311,8 +377,46 @@ document.getElementById("btn-enviar-pedido").addEventListener("click", async (e)
       });
     }
   });
+  return items;
+}
+
+// Tocar "Enviar pedido" ya no manda nada directo: abre un modal con el
+// resumen de lo cargado (para poder revisarlo sin tener que volver a
+// scrollear por todo el catálogo) y ahí adentro está la nota y el botón
+// que sí confirma el envío de verdad.
+function abrirModalConfirmarPedido(items){
+  const cont = document.getElementById("confirmar-pedido-items");
+  cont.innerHTML = items.map(it => `
+    <div class="flex items-center justify-between gap-3 py-2 border-b text-sm" style="border-color:var(--linea)">
+      <span class="truncate">${it.nombre} <span class="text-xs" style="color:var(--tinta-suave)">(${etiquetaUnidad(it.unidad)})</span></span>
+      <span class="num-mono font-700 shrink-0">${it.cantidadPedida}</span>
+    </div>`).join("");
+  document.getElementById("modal-confirmar-pedido").classList.remove("hidden");
+  document.getElementById("modal-confirmar-pedido").classList.add("flex");
+}
+
+function cerrarModalConfirmarPedido(){
+  document.getElementById("modal-confirmar-pedido").classList.add("hidden");
+  document.getElementById("modal-confirmar-pedido").classList.remove("flex");
+}
+document.getElementById("modal-confirmar-pedido-cerrar").addEventListener("click", cerrarModalConfirmarPedido);
+document.getElementById("btn-cancelar-confirmar-pedido").addEventListener("click", cerrarModalConfirmarPedido);
+
+document.getElementById("btn-enviar-pedido").addEventListener("click", async () => {
+  const items = itemsSeleccionados();
   if (items.length === 0) {
     await alertaBonita("Cargá al menos un producto con cantidad mayor a 0.", { tipo: "advertencia" });
+    return;
+  }
+  abrirModalConfirmarPedido(items);
+});
+
+// Este es el botón que efectivamente manda el pedido a central, adentro
+// del modal de confirmación.
+document.getElementById("btn-confirmar-envio-pedido").addEventListener("click", async (e) => {
+  const items = itemsSeleccionados();
+  if (items.length === 0) {
+    cerrarModalConfirmarPedido();
     return;
   }
   conCarga(e.currentTarget, async () => {
@@ -342,6 +446,7 @@ document.getElementById("btn-enviar-pedido").addEventListener("click", async (e)
     deleteDoc(doc(db, "borradores", usuario.uid)).catch((err) => {
       console.error("Error borrando el borrador tras enviar el pedido:", err);
     });
+    cerrarModalConfirmarPedido();
     const conf = document.getElementById("confirmacion-envio");
     conf.classList.remove("hidden");
     setTimeout(() => conf.classList.add("hidden"), 4000);
@@ -429,13 +534,13 @@ function renderMisPedidos(){
   document.getElementById("mios-vacio").classList.toggle("hidden", misPedidos.length > 0);
   misPedidos.forEach(p => {
     const row = document.createElement("div");
-    row.className = `ticket px-4 py-3 flex items-center justify-between cursor-pointer ${p.estado}`;
+    row.className = `ticket px-4 py-3 flex items-center justify-between gap-2 cursor-pointer ${p.estado}`;
     row.innerHTML = `
-      <div class="flex items-center gap-4">
-        <div class="num-mono text-lg font-700">#${p.numero ?? "—"}</div>
-        <div class="text-xs" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos</div>
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="num-mono text-lg font-700 shrink-0">#${p.numero ?? "—"}</div>
+        <div class="text-xs truncate" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos</div>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 shrink-0">
         ${tieneDiferencias(p) ? '<span class="badge badge-diferencia">Diferencia</span>' : ''}
         ${badgeHtml(p.estado)}
       </div>`;
