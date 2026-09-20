@@ -83,7 +83,6 @@
           <button id="btn-guardar-borrador" type="button" class="px-4 py-2.5 rounded border font-600 text-sm" style="border-color:var(--linea)">Guardar para después</button>
         </div>
       </div>
-      <p id="confirmacion-envio" class="text-sm mb-4 hidden" style="color:var(--verde)">Pedido enviado a central ✓</p>
       <p id="confirmacion-borrador" class="text-sm mb-4 hidden" style="color:var(--tinta-suave)">Pedido guardado. Iniciá sesión desde cualquier otra computadora para continuarlo.</p>
 
       <div id="lista-catalogo" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6"></div>
@@ -192,6 +191,20 @@
   </div>
 </div>
 
+<!-- Modal: aviso de pedido enviado. "Aceptar" lleva a Mis pedidos para que
+     se vea el pedido recién hecho. -->
+<div id="modal-pedido-enviado" class="fixed inset-0 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.65)" role="dialog" aria-modal="true" aria-labelledby="pedido-enviado-titulo">
+  <div class="rounded-xl max-w-sm w-full p-6 sm:p-8 text-center" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
+    <div class="mx-auto mb-4 flex items-center justify-center rounded-full" style="width:56px; height:56px; background:var(--verde); color:#fff">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    </div>
+    <div id="pedido-enviado-titulo" class="font-display text-2xl font-700 mb-1">Pedido enviado</div>
+    <div class="text-sm font-600 mb-3" style="color:var(--verde)">Pedido <span id="pedido-enviado-numero" class="num-mono"></span></div>
+    <p class="text-sm mb-6" style="color:var(--tinta-suave)">Tu pedido ya llegó a central. Podés seguir su estado en &ldquo;Mis pedidos&rdquo;.</p>
+    <button id="btn-aceptar-pedido-enviado" type="button" class="w-full px-5 py-2.5 rounded text-white font-600 text-sm" style="background:var(--ambar-oscuro)">Aceptar</button>
+  </div>
+</div>
+
 <script type="module">
 import {
   auth, db, onAuthStateChanged, signOut, obtenerPerfil, siguienteNumeroPedido,
@@ -265,6 +278,7 @@ const elementosQueBloqueanScroll = [
   sidebarEl,
   document.getElementById("modal"),
   document.getElementById("modal-confirmar-pedido"),
+  document.getElementById("modal-pedido-enviado"),
 ].filter(Boolean);
 
 // Con overflow:hidden solo, el fondo en iOS/Android igual "rebota" y a
@@ -416,7 +430,7 @@ function itemsSeleccionados(){
     if (cantidad > 0) {
       const prod = catalogo.find(p => p.id === productoId);
       if (prod) items.push({
-        productoId: prod.id, nombre: prod.nombre, unidad: prod.unidad,
+        productoId: prod.id, nombre: prod.nombre, unidad: prod.unidad, esPan: !!prod.esPan,
         cantidadPedida: cantidad, cantidadEnviada: null, notaItem: ""
       });
     }
@@ -446,6 +460,27 @@ function cerrarModalConfirmarPedido(){
 document.getElementById("modal-confirmar-pedido-cerrar").addEventListener("click", cerrarModalConfirmarPedido);
 document.getElementById("btn-cancelar-confirmar-pedido").addEventListener("click", cerrarModalConfirmarPedido);
 
+// Aviso de pedido enviado: antes era una línea verde chica que aparecía 4
+// segundos y se podía pasar por alto. Ahora es un modal que hay que aceptar,
+// y "Aceptar" lleva a Mis pedidos, donde ya está el pedido recién hecho.
+function abrirModalPedidoEnviado(numero){
+  document.getElementById("pedido-enviado-numero").textContent = numero != null ? "#" + numero : "";
+  const modal = document.getElementById("modal-pedido-enviado");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+  document.getElementById("btn-aceptar-pedido-enviado").focus();
+}
+document.getElementById("btn-aceptar-pedido-enviado").addEventListener("click", () => {
+  const modal = document.getElementById("modal-pedido-enviado");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+  document.querySelector('.tab-btn[data-tab="mios"]').click();
+  // Al cerrar el modal se restaura el scroll que había en "Nuevo pedido"
+  // (ver actualizarBloqueoScroll); el setTimeout hace que la vista de Mis
+  // pedidos arranque desde arriba, donde queda el pedido nuevo.
+  setTimeout(() => window.scrollTo(0, 0), 0);
+});
+
 document.getElementById("btn-enviar-pedido").addEventListener("click", async () => {
   const items = itemsSeleccionados();
   if (items.length === 0) {
@@ -463,6 +498,12 @@ document.getElementById("btn-confirmar-envio-pedido").addEventListener("click", 
     cerrarModalConfirmarPedido();
     return;
   }
+  // Si algún ítem quedó marcado "esPan" (copiado del catálogo al armar la
+  // lista), el pedido nace con su propio estado de pan, independiente de
+  // "estado", que va a ir actualizando la panadería. Un pedido sin pan no
+  // lleva este campo, para no confundirlo con "sin pan" vs "pan ya listo".
+  const tienePan = items.some(it => it.esPan);
+
   conCarga(e.currentTarget, async () => {
     const numero = await siguienteNumeroPedido();
     await addDoc(collection(db, "pedidos"), {
@@ -471,6 +512,7 @@ document.getElementById("btn-confirmar-envio-pedido").addEventListener("click", 
       sucursalNombre: usuario.nombre || "Sucursal",
       estado: "pendiente",
       items,
+      panEstado: tienePan ? "pendiente" : null,
       historial: [],
       notaCentral: "",
       notaSucursalPedido: document.getElementById("nota-pedido").value.trim(),
@@ -491,9 +533,7 @@ document.getElementById("btn-confirmar-envio-pedido").addEventListener("click", 
       console.error("Error borrando el borrador tras enviar el pedido:", err);
     });
     cerrarModalConfirmarPedido();
-    const conf = document.getElementById("confirmacion-envio");
-    conf.classList.remove("hidden");
-    setTimeout(() => conf.classList.add("hidden"), 4000);
+    abrirModalPedidoEnviado(numero);
   }, "Enviando…");
 });
 
@@ -530,9 +570,24 @@ function badgeHtml(estado){
     enviado: ["badge-enviado", "Enviado — a confirmar"],
     recibido: ["badge-recibido", "Recibido"],
     cancelado: ["badge-cancelado", "Cancelado"],
-    rechazado: ["badge-rechazado", "Rechazado por central"],
+    rechazado: ["badge-rechazado", "Rechazado"],
   };
   const [clase, texto] = mapa[estado] || ["badge-pendiente", estado];
+  return `<span class="badge ${clase}">${texto}</span>`;
+}
+
+// Mismo criterio que en central.html: estado del pan, independiente del
+// estado general del pedido. Le sirve a la sucursal para saber si lo que
+// falta es que central despache o que la panadería termine el pan.
+function badgePan(panEstado){
+  if (!panEstado) return "";
+  const mapa = {
+    pendiente: ["badge-pendiente", "Pan: pendiente"],
+    en_proceso: ["badge-preparacion", "Pan: en proceso"],
+    listo: ["badge-recibido", "Pan: listo"],
+    rechazado: ["badge-rechazado", "Pan: rechazado"],
+  };
+  const [clase, texto] = mapa[panEstado] || ["badge-pendiente", "Pan: " + panEstado];
   return `<span class="badge ${clase}">${texto}</span>`;
 }
 
@@ -540,14 +595,29 @@ function tieneDiferencias(pedido){
   return (pedido.items || []).some(it => it.cantidadEnviada != null && Number(it.cantidadEnviada) !== Number(it.cantidadPedida));
 }
 
+// Fechas siempre en formato argentino (dd/mm/aaaa), hora de 24 h (sin
+// a. m. / p. m.) y en la zona horaria de Argentina, sin depender de cómo
+// tenga configurado el idioma o la hora el dispositivo. Se usa hourCycle
+// "h23" y no hour12:false a propósito: hour12:false puede mostrar la
+// medianoche como 24:05 en vez de 00:05.
+const OPCIONES_FECHA_AR = {
+  timeZone: "America/Argentina/Buenos_Aires",
+  hourCycle: "h23",
+  day: "2-digit", month: "2-digit", year: "numeric",
+  hour: "2-digit", minute: "2-digit",
+};
+function formatearFechaAR(fecha){
+  return fecha.toLocaleString("es-AR", OPCIONES_FECHA_AR);
+}
+
 function fechaLegible(ts){
   if (!ts || !ts.toDate) return "";
-  return ts.toDate().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  return formatearFechaAR(ts.toDate());
 }
 
 function fechaLegibleMs(ms){
   if (!ms) return "";
-  return new Date(ms).toLocaleString("es-AR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  return formatearFechaAR(new Date(ms));
 }
 
 const textoEstado = {
@@ -557,6 +627,10 @@ const textoEstado = {
   recibido: "Confirmado por la sucursal",
   cancelado: "Cancelado por la sucursal",
   rechazado: "Rechazado por central",
+  pan_en_proceso: "Panadería puso el pan en proceso",
+  pan_listo: "Panadería marcó el pan como listo",
+  rechazado_pan: "Rechazado por la panadería",
+  pan_rechazado: "Panadería rechazó el pan de este pedido",
 };
 
 function renderHistorial(pedido){
@@ -586,6 +660,7 @@ function renderMisPedidos(){
       </div>
       <div class="flex items-center gap-2 shrink-0">
         ${tieneDiferencias(p) ? '<span class="badge badge-diferencia">Diferencia</span>' : ''}
+        ${badgePan(p.panEstado)}
         ${badgeHtml(p.estado)}
       </div>`;
     row.addEventListener("click", () => abrirModal(p));
@@ -599,7 +674,7 @@ function abrirModal(pedido){
   pedidoActivo = pedido;
   document.getElementById("modal-numero").textContent = "#" + (pedido.numero ?? "—");
   document.getElementById("modal-fecha").textContent = fechaLegible(pedido.creadoEn);
-  document.getElementById("modal-badge").innerHTML = badgeHtml(pedido.estado);
+  document.getElementById("modal-badge").innerHTML = badgeHtml(pedido.estado) + " " + badgePan(pedido.panEstado);
 
   const notaPropiaWrap = document.getElementById("modal-nota-propia-wrap");
   if (pedido.notaSucursalPedido) {
@@ -671,6 +746,9 @@ document.getElementById("btn-cancelar-pedido").addEventListener("click", async (
   conCarga(e.currentTarget, async () => {
     await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
       estado: "cancelado",
+      // Se saca de la vista de la panadería (si no tenía pan, esto no
+      // cambia nada): un pedido cancelado no se hace ni se despacha.
+      panEstado: null,
       actualizadoEn: serverTimestamp(),
       historial: arrayUnion({ estado: "cancelado", en: Date.now(), por: usuario.nombre }),
     });
