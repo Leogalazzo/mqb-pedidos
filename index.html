@@ -103,6 +103,8 @@ function redirigirSegunRol(user){
   const rol = obtenerRolPorCorreo(user.email);
   if (rol === "central") {
     location.href = "central.html";
+  } else if (rol === "panadero") {
+    location.href = "panaderia.html";
   } else {
     location.href = "sucursal.html";
   }
