@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos — Panadería</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="estilos.css">
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#084788">
+<link rel="icon" type="image/png" sizes="192x192" href="/192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/512.png">
+<link rel="apple-touch-icon" href="/192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MQB Pedidos">
+</head>
+<body class="min-h-screen">
+
+<div id="cargando-pagina"><span class="spinner spinner-oscuro"></span>Cargando…</div>
+
+<!-- Botón hamburguesa: solo visible en mobile, fijo arriba a la izquierda -->
+<button id="btn-menu" class="menu-hamburguesa md:hidden" aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <line x1="3" y1="12" x2="21" y2="12"></line>
+    <line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+</button>
+
+<!-- Overlay detrás del sidebar en mobile: tocarlo cierra el menú -->
+<div id="sidebar-overlay" class="sidebar-overlay hidden md:hidden"></div>
+
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar w-64 shrink-0 border-r px-5 py-7 flex flex-col justify-between" style="border-color:var(--linea)">
+    <button id="btn-cerrar-menu" class="btn-cerrar-menu md:hidden" aria-label="Cerrar menú">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+    <div>
+      <div class="sidebar-logo">
+        <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers">
+      </div>
+      <div class="text-xs mb-8 text-center" style="color:var(--tinta-suave)">Panadería</div>
+    </div>
+    <div class="pt-5 border-t" style="border-color:var(--linea)">
+      <div id="usuario-nombre" class="text-sm font-600 mb-2"></div>
+      <button id="btn-logout" class="link-pie-sidebar text-xs" style="color:var(--tinta-suave)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 px-4 pt-20 pb-6 md:px-8 md:pt-6">
+    <h1 class="font-display text-2xl font-700 mb-5">Pan pedido por las sucursales</h1>
+
+    <div class="filtros-panel">
+      <div class="filtros-fila">
+        <span class="filtros-etiqueta">Estado</span>
+        <div class="filtros-chips" id="filtros-pan">
+          <button data-pan="pendiente,en_proceso" class="filtro-btn chip-btn">Por hacer</button>
+          <button data-pan="listo" class="filtro-btn chip-btn">Listos</button>
+          <button data-pan="" class="filtro-btn chip-btn">Todos</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="lista-pedidos-pan" class="space-y-3"></div>
+    <div id="pedidos-pan-vacio" class="estado-vacio hidden"></div>
+  </main>
+</div>
+
+<!-- Modal: solo los items de pan de un pedido -->
+<div id="modal" class="fixed inset-0 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.65)">
+  <div class="modal-caja rounded-xl max-w-lg w-full p-4 sm:p-6" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
+    <div class="flex items-start justify-between mb-1 modal-fijo">
+      <div>
+        <div class="font-display text-xl font-700">Pedido <span id="modal-numero" class="num-mono"></span></div>
+        <div class="text-sm" style="color:var(--tinta-suave)" id="modal-sucursal"></div>
+      </div>
+      <button id="modal-cerrar" class="text-2xl leading-none" style="color:var(--tinta-suave)">&times;</button>
+    </div>
+    <div id="modal-badge" class="mb-4 modal-fijo"></div>
+
+    <div class="modal-cuerpo">
+      <div class="tabla-scroll mb-4">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
+              <th class="py-2 font-600">Pan</th>
+              <th class="py-2 font-600 text-right">Pedido</th>
+              <th class="py-2 font-600 text-right" id="modal-th-hecho">Hecho</th>
+              <th class="py-2 font-600" id="modal-th-nota">Nota (si difiere)</th>
+            </tr>
+          </thead>
+          <tbody id="modal-items"></tbody>
+        </table>
+      </div>
+
+      <!-- Motivo de rechazo: solo aparece en los pedidos que son únicamente de
+           pan, que son los que la panadería puede rechazar por su cuenta. -->
+      <div id="modal-nota-rechazo-wrap" class="mb-4 hidden">
+        <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Nota (solo hace falta si vas a rechazar el pedido)</label>
+        <textarea id="modal-nota-rechazo" rows="2" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-botones mb-2 modal-fijo">
+      <button id="btn-en-proceso" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Poner en proceso</button>
+      <button id="btn-listo" class="hidden px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--verde)">Marcar listo</button>
+      <button id="btn-rechazar" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--rojo); color:var(--rojo)">Rechazar pedido</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  auth, db, onAuthStateChanged, signOut, obtenerPerfil,
+  collection, query, where, orderBy, onSnapshot, updateDoc, doc, serverTimestamp, arrayUnion
+} from "./firebase-config.js";
+import { conCarga, mostrarCargandoLista, ocultarCargaPagina } from "./ui.js";
+import { alertaBonita, confirmarBonito } from "./avisos.js";
+
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+const ETIQUETAS_UNIDAD = { kg: "Kilogramos", l: "Litros", un: "Unidades" };
+function etiquetaUnidad(valor){ return ETIQUETAS_UNIDAD[valor] || valor; }
+
+// ---------- Guard de sesión / rol ----------
+let miNombre = "Panadería";
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { location.href = "index.html"; return; }
+  const perfil = await obtenerPerfil(user);
+  if (perfil.rol !== "panadero") { location.href = "index.html"; return; }
+  miNombre = perfil.nombre || "Panadería";
+  document.getElementById("usuario-nombre").textContent = miNombre;
+  mostrarCargandoPedidos();
+  iniciarListener();
+  ocultarCargaPagina();
+});
+document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
+
+// ---------- Menú hamburguesa (mobile) ----------
+const btnMenu = document.getElementById("btn-menu");
+const btnCerrarMenu = document.getElementById("btn-cerrar-menu");
+const sidebarEl = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
+function abrirMenu(){
+  sidebarEl.classList.add("sidebar-abierto");
+  sidebarOverlay.classList.remove("hidden");
+  btnMenu.setAttribute("aria-expanded", "true");
+}
+function cerrarMenu(){
+  sidebarEl.classList.remove("sidebar-abierto");
+  sidebarOverlay.classList.add("hidden");
+  btnMenu.setAttribute("aria-expanded", "false");
+}
+btnMenu.addEventListener("click", abrirMenu);
+btnCerrarMenu.addEventListener("click", cerrarMenu);
+sidebarOverlay.addEventListener("click", cerrarMenu);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarMenu(); });
+
+// ---------- Badges ----------
+function badgePan(panEstado){
+  const mapa = {
+    pendiente: ["badge-pendiente", "Pendiente"],
+    en_proceso: ["badge-preparacion", "En proceso"],
+    listo: ["badge-recibido", "Listo"],
+  };
+  const [clase, texto] = mapa[panEstado] || ["badge-pendiente", panEstado];
+  return `<span class="badge ${clase}">${texto}</span>`;
+}
+
+// Fechas siempre en formato argentino (dd/mm/aaaa), hora de 24 h (sin
+// a. m. / p. m.) y en la zona horaria de Argentina, sin depender de cómo
+// tenga configurado el idioma o la hora el dispositivo. Se usa hourCycle
+// "h23" y no hour12:false a propósito: hour12:false puede mostrar la
+// medianoche como 24:05 en vez de 00:05.
+const OPCIONES_FECHA_AR = {
+  timeZone: "America/Argentina/Buenos_Aires",
+  hourCycle: "h23",
+  day: "2-digit", month: "2-digit", year: "numeric",
+  hour: "2-digit", minute: "2-digit",
+};
+function formatearFechaAR(fecha){
+  return fecha.toLocaleString("es-AR", OPCIONES_FECHA_AR);
+}
+
+function fechaLegible(ts){
+  if (!ts || !ts.toDate) return "";
+  return formatearFechaAR(ts.toDate());
+}
+
+// Solo los ítems marcados esPan (copiado del catálogo al momento del
+// pedido): la panadería nunca ve el resto de lo que pidió la sucursal.
+function itemsDePan(pedido){
+  return (pedido.items || []).filter(it => it.esPan);
+}
+
+// Pedido que es ÚNICAMENTE de pan: no tiene nada que central tenga que armar,
+// así que la decisión de rechazarlo es de la panadería (en central esos
+// pedidos ya no muestran "Rechazar", ver central.html). En un pedido mixto,
+// en cambio, el rechazo lo sigue manejando central: acá no se ofrece porque
+// cancelaría también productos que no son de panadería.
+function esSoloPan(pedido){
+  const items = pedido.items || [];
+  return items.length > 0 && items.every(it => it.esPan);
+}
+
+// ---------- Listado ----------
+let pedidosPan = [];
+let filtroPan = "pendiente,en_proceso";
+let unsubPedidosPan = null;
+
+const VACIO_HTML = `
+        <div class="estado-vacio-icono">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-6l-2 3h-4l-2-3H2"/>
+            <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+          </svg>
+        </div>
+        <p class="estado-vacio-texto">No hay pedidos de pan en esta categoría</p>`;
+const CARGANDO_HTML = `
+        <div class="estado-vacio-icono"><span class="spinner spinner-oscuro"></span></div>
+        <p class="estado-vacio-texto">Cargando pedidos…</p>`;
+
+function mostrarCargandoPedidos(){
+  document.getElementById("lista-pedidos-pan").innerHTML = "";
+  const vacioEl = document.getElementById("pedidos-pan-vacio");
+  vacioEl.innerHTML = CARGANDO_HTML;
+  vacioEl.classList.remove("hidden");
+}
+
+function renderPedidosPan(){
+  const cont = document.getElementById("lista-pedidos-pan");
+  cont.innerHTML = "";
+  const estados = filtroPan === "" ? ["pendiente", "en_proceso", "listo"] : filtroPan.split(",");
+  const filtrados = pedidosPan.filter(p => estados.includes(p.panEstado));
+
+  const vacioEl = document.getElementById("pedidos-pan-vacio");
+  vacioEl.innerHTML = VACIO_HTML;
+  vacioEl.classList.toggle("hidden", filtrados.length > 0);
+
+  filtrados.forEach(p => {
+    const items = itemsDePan(p);
+    const row = document.createElement("div");
+    row.className = `ticket px-4 py-3 flex items-center justify-between gap-2 cursor-pointer`;
+    row.innerHTML = `
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="num-mono text-lg font-700 shrink-0">#${p.numero ?? "—"}</div>
+        <div class="min-w-0">
+          <div class="font-600 truncate">${escapeHtml(p.sucursalNombre || "Sucursal")}</div>
+          <div class="text-xs truncate" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${items.length} ${items.length === 1 ? "producto de pan" : "productos de pan"}</div>
+        </div>
+      </div>
+      <div class="shrink-0">${badgePan(p.panEstado)}</div>`;
+    row.addEventListener("click", () => abrirModal(p));
+    cont.appendChild(row);
+  });
+}
+
+document.querySelectorAll("#filtros-pan .filtro-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    filtroPan = btn.dataset.pan;
+    document.querySelectorAll("#filtros-pan .filtro-btn").forEach(b => b.classList.remove("activo"));
+    btn.classList.add("activo");
+    renderPedidosPan();
+  });
+});
+document.querySelector('#filtros-pan .filtro-btn[data-pan="pendiente,en_proceso"]').classList.add("activo");
+
+function iniciarListener(){
+  // Nota: si Firestore pide crear un índice compuesto para esta consulta
+  // (panEstado + creadoEn), la consola del navegador trae el link para
+  // crearlo con un clic, igual que en central.html.
+  unsubPedidosPan = onSnapshot(
+    query(collection(db, "pedidos"), where("panEstado", "in", ["pendiente", "en_proceso", "listo"]), orderBy("creadoEn", "desc")),
+    (snap) => {
+      pedidosPan = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderPedidosPan();
+      if (pedidoActivo) {
+        const actualizado = pedidosPan.find(p => p.id === pedidoActivo.id);
+        if (actualizado) pedidoActivo = actualizado;
+      }
+    },
+    (err) => console.error("Error leyendo pedidos de pan:", err)
+  );
+}
+
+// ---------- Modal ----------
+let pedidoActivo = null;
+
+function abrirModal(pedido){
+  pedidoActivo = pedido;
+  document.getElementById("modal-numero").textContent = "#" + (pedido.numero ?? "—");
+  document.getElementById("modal-sucursal").textContent = pedido.sucursalNombre || "";
+  document.getElementById("modal-badge").innerHTML = badgePan(pedido.panEstado);
+
+  const items = itemsDePan(pedido);
+  const enProceso = pedido.panEstado === "en_proceso";
+  const tbody = document.getElementById("modal-items");
+  tbody.innerHTML = "";
+  items.forEach((it, idx) => {
+    const tr = document.createElement("tr");
+    tr.className = "border-b";
+    tr.style.borderColor = "var(--linea)";
+    let celdaHecho, celdaNota;
+    if (enProceso) {
+      const hecha = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+      celdaHecho = `<input type="number" min="0" step="any" data-idx="${idx}" class="input-cant input-hecho border rounded px-2 py-1" style="border-color:var(--linea)" value="${hecha}">`;
+      celdaNota = `<input type="text" data-idx="${idx}" class="input-nota-item border rounded px-2 py-1 w-full text-xs" style="border-color:var(--linea)" placeholder="ej: no había harina" value="${escapeHtml(it.notaItem || "")}">`;
+    } else if (pedido.panEstado === "listo") {
+      const hecha = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+      celdaHecho = `<span class="num-mono">${hecha}</span>`;
+      celdaNota = `<span class="text-xs" style="color:var(--tinta-suave)">${escapeHtml(it.notaItem || "—")}</span>`;
+    } else {
+      celdaHecho = `<span style="color:var(--tinta-tenue)">—</span>`;
+      celdaNota = `<span style="color:var(--tinta-tenue)">—</span>`;
+    }
+    tr.innerHTML = `
+      <td class="py-2">${escapeHtml(it.nombre)} <span class="text-xs" style="color:var(--tinta-suave)">(${escapeHtml(etiquetaUnidad(it.unidad))})</span></td>
+      <td class="py-2 text-right num-mono">${it.cantidadPedida}</td>
+      <td class="py-2 text-right">${celdaHecho}</td>
+      <td class="py-2">${celdaNota}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("btn-en-proceso").classList.toggle("hidden", pedido.panEstado !== "pendiente");
+  document.getElementById("btn-listo").classList.toggle("hidden", !enProceso);
+
+  // Se puede rechazar mientras el pan no esté marcado como listo (ni ya
+  // rechazado): una vez resuelto, ya no tiene sentido volver atrás. En un
+  // pedido de solo pan esto rechaza el pedido entero; en uno mixto, solo la
+  // parte de pan (central decide qué hacer con el resto).
+  const puedeRechazar = ["pendiente", "en_proceso"].includes(pedido.panEstado);
+  document.getElementById("btn-rechazar").classList.toggle("hidden", !puedeRechazar);
+  document.getElementById("btn-rechazar").textContent = esSoloPan(pedido) ? "Rechazar pedido" : "Rechazar pan de este pedido";
+  document.getElementById("modal-nota-rechazo-wrap").classList.toggle("hidden", !puedeRechazar);
+  document.getElementById("modal-nota-rechazo").value = "";
+
+  document.getElementById("modal").classList.remove("hidden");
+  document.getElementById("modal").classList.add("flex");
+}
+
+document.getElementById("modal-cerrar").addEventListener("click", () => {
+  document.getElementById("modal").classList.add("hidden");
+  document.getElementById("modal").classList.remove("flex");
+});
+
+document.getElementById("btn-en-proceso").addEventListener("click", (e) => {
+  conCarga(e.currentTarget, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+      panEstado: "en_proceso",
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "pan_en_proceso", en: Date.now(), por: miNombre }),
+    });
+    document.getElementById("modal").classList.add("hidden");
+  }, "Guardando…");
+});
+
+document.getElementById("btn-listo").addEventListener("click", async (e) => {
+  const inputsHecho = document.querySelectorAll(".input-hecho");
+  const inputsNota = document.querySelectorAll(".input-nota-item");
+  // Se actualiza SOLO la copia de los ítems de pan dentro del array
+  // completo del pedido; los ítems que no son de pan quedan intactos
+  // (esos los sigue completando central).
+  const items = pedidoActivo.items.map(it => ({ ...it }));
+  const panItems = items.filter(it => it.esPan);
+  inputsHecho.forEach(inp => {
+    const idx = Number(inp.dataset.idx);
+    panItems[idx].cantidadEnviada = Number(inp.value);
+  });
+  let faltaNota = false;
+  inputsNota.forEach(inp => {
+    const idx = Number(inp.dataset.idx);
+    panItems[idx].notaItem = inp.value.trim();
+    if (Number(panItems[idx].cantidadEnviada) !== Number(panItems[idx].cantidadPedida) && !panItems[idx].notaItem) {
+      faltaNota = true;
+    }
+  });
+
+  // Si mandás menos (o más) pan del pedido, central necesita saber por qué
+  // antes de decidir si despacha así o espera: la nota queda en notaItem,
+  // el mismo campo que central ya muestra junto a cada producto.
+  if (faltaNota) {
+    await alertaBonita("Hay pan con una cantidad distinta a la pedida. Agregá una nota explicando la diferencia antes de marcarlo listo.", { tipo: "advertencia" });
+    return;
+  }
+
+  conCarga(e.currentTarget, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+      items,
+      panEstado: "listo",
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "pan_listo", en: Date.now(), por: miNombre }),
+    });
+    document.getElementById("modal").classList.add("hidden");
+  }, "Guardando…");
+});
+
+// Rechazo desde la panadería. En un pedido de solo pan (ver esSoloPan)
+// rechazar el pan equivale a rechazar el pedido completo: queda en estado
+// "rechazado", se le saca el panEstado (desaparece de esta pantalla, igual
+// que cuando lo rechaza central) y el motivo viaja en notaCentral, que es
+// el campo que la sucursal ya muestra como explicación.
+//
+// En un pedido MIXTO (pan + otros productos), rechazar acá solo afecta a la
+// parte de pan: el pedido en sí sigue su curso normal en central (que puede
+// seguir armando el resto), panEstado pasa a "rechazado" (no se hace más
+// pan para este pedido) y la cantidad/nota de los ítems de pan quedan en 0
+// con el motivo, para que central lo vea marcado en rojo en su propia
+// tabla, igual que cualquier otra diferencia. Central decide desde ahí si
+// despacha sin el pan, avisa a la sucursal, etc.
+document.getElementById("btn-rechazar").addEventListener("click", async (e) => {
+  const btn = e.currentTarget; // se guarda antes de los await: currentTarget deja de ser válido una vez que el evento terminó de despacharse
+  const nota = document.getElementById("modal-nota-rechazo").value.trim();
+  if (!nota) {
+    await alertaBonita("Para rechazar hay que dejar una nota explicando el motivo.", { tipo: "advertencia" });
+    return;
+  }
+
+  if (esSoloPan(pedidoActivo)) {
+    const confirmado = await confirmarBonito(
+      `¿Rechazar el pedido #${pedidoActivo.numero ?? ""}? La sucursal y central van a ver este motivo, y el pan no se va a hacer.`,
+      { tipo: "peligro", textoConfirmar: "Rechazar pedido" }
+    );
+    if (!confirmado) return;
+    conCarga(btn, async () => {
+      await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+        estado: "rechazado",
+        panEstado: null,
+        notaCentral: nota,
+        actualizadoEn: serverTimestamp(),
+        historial: arrayUnion({ estado: "rechazado_pan", en: Date.now(), por: miNombre, nota }),
+      });
+      document.getElementById("modal").classList.add("hidden");
+    }, "Rechazando…");
+    return;
+  }
+
+  const confirmado = await confirmarBonito(
+    `¿Rechazar el pan del pedido #${pedidoActivo.numero ?? ""}? ` +
+    (pedidoActivo.estado === "rechazado"
+      ? "Central ya rechazó el resto del pedido; el pan no se va a hacer y central va a ver este motivo."
+      : "El resto del pedido sigue su curso en central; central va a ver este motivo."),
+    { tipo: "peligro", textoConfirmar: "Rechazar pan" }
+  );
+  if (!confirmado) return;
+  // Se marca cada ítem de pan con cantidadEnviada 0 y la nota del rechazo:
+  // central ya sabe leer esos dos campos (los muestra en rojo si difieren
+  // de lo pedido), así no hace falta ningún campo nuevo para que se entere.
+  const items = pedidoActivo.items.map(it => ({ ...it }));
+  items.filter(it => it.esPan).forEach(it => {
+    it.cantidadEnviada = 0;
+    it.notaItem = nota;
+  });
+  conCarga(btn, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+      items,
+      panEstado: "rechazado",
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "pan_rechazado", en: Date.now(), por: miNombre, nota }),
+    });
+    document.getElementById("modal").classList.add("hidden");
+  }, "Rechazando…");
+});
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
