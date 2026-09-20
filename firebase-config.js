@@ -80,6 +80,18 @@ export const CUENTAS_CENTRAL = {
 };
 
 // ============================================================
+// Cuenta(s) del panadero: mismo patrón que CUENTAS_CENTRAL. El pan se
+// hace en un lugar aparte de central, así que esta cuenta entra como
+// rol "panadero" (no "sucursal") y ve su propia pantalla (panaderia.html),
+// con solo los productos marcados como "esPan" de los pedidos que los
+// incluyan. Cualquier otro correo que pueda loguearse y no esté en
+// ninguno de los dos mapas sigue entrando como "sucursal".
+// ============================================================
+export const CUENTAS_PANADERO = {
+  "panaderia@mqb.interno": "Panadería",
+};
+
+// ============================================================
 // Login por "usuario" en vez de correo real: Firebase Authentication
 // solo sabe loguear con email, así que cada cuenta se crea con un
 // correo inventado (nunca se manda nada ahí) con este dominio fijo.
@@ -94,7 +106,10 @@ export function emailDesdeUsuario(usuario) {
 
 export function obtenerRolPorCorreo(email) {
   if (!email) return null;
-  return CUENTAS_CENTRAL[email.toLowerCase()] ? "central" : "sucursal";
+  const correo = email.toLowerCase();
+  if (CUENTAS_CENTRAL[correo]) return "central";
+  if (CUENTAS_PANADERO[correo]) return "panadero";
+  return "sucursal";
 }
 
 // ============================================================
@@ -114,6 +129,9 @@ export async function obtenerPerfil(user) {
   const rol = obtenerRolPorCorreo(user.email);
   if (rol === "central") {
     return { rol, nombre: CUENTAS_CENTRAL[(user.email || "").toLowerCase()] || "Casa central" };
+  }
+  if (rol === "panadero") {
+    return { rol, nombre: CUENTAS_PANADERO[(user.email || "").toLowerCase()] || "Panadería" };
   }
 
   const ref = doc(db, "sucursales", user.uid);
