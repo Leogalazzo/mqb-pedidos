@@ -11,7 +11,7 @@
 // dispositivos que ya instalaron la app bajen la versión nueva.
 // ============================================================
 
-const CACHE_VERSION = "v1.0";
+const CACHE_VERSION = "v1.0.9";
 const CACHE_NAME = `mqb-shell-${CACHE_VERSION}`;
 
 const ARCHIVOS_CASCARA = [
