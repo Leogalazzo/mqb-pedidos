@@ -101,11 +101,11 @@
         <div class="filtros-fila">
           <span class="filtros-etiqueta">Estado</span>
           <div class="filtros-chips" id="filtros-estado">
-            <button data-estado="pendiente,en_preparacion" class="filtro-btn chip-btn">Activos</button>
+            <button data-estado="pendiente,en_preparacion,rechazado_pan" class="filtro-btn chip-btn">Activos</button>
             <button data-estado="enviado" class="filtro-btn chip-btn">Enviados</button>
             <button data-estado="recibido" class="filtro-btn chip-btn">Recibidos</button>
             <button data-estado="cancelado" class="filtro-btn chip-btn">Cancelados</button>
-            <button data-estado="rechazado" class="filtro-btn chip-btn">Rechazados</button>
+            <button data-estado="rechazado,rechazado_pan" class="filtro-btn chip-btn">Rechazados</button>
             <button data-estado="" class="filtro-btn chip-btn">Todos</button>
           </div>
         </div>
@@ -139,6 +139,10 @@
           <input id="p-categoria" placeholder="Categoría (opcional)" list="lista-categorias" class="w-full border rounded px-3 py-2" style="border-color:var(--linea)">
           <button type="submit" class="px-4 py-2 rounded text-white font-600 whitespace-nowrap" style="background:var(--ambar-oscuro)">Agregar</button>
         </div>
+        <label class="sm:col-span-4 flex items-center gap-2 text-sm" style="color:var(--tinta-suave)">
+          <input type="checkbox" id="p-es-pan" class="rounded">
+          Se hace en la panadería (no en central) — le va a llegar solo a esa cuenta
+        </label>
       </form>
       <datalist id="lista-categorias"></datalist>
 
@@ -289,10 +293,15 @@
   <table class="hi-tabla">
     <thead>
       <tr>
-        <th class="hi-col-check"></th>
         <th>Producto</th>
-        <th class="hi-col-num">Cantidad</th>
-        <th>Unidad</th>
+        <th class="hi-col-num" id="hi-th-cantidad">Cantidad</th>
+        <th id="hi-th-unidad">Unidad</th>
+        <!-- Estas dos solo se muestran cuando el pedido llega ya armado por
+             panadería (despacho directo): ahí lo que hace falta no es una
+             lista para ir a buscar mercadería, sino confirmar lo que ya se
+             hizo y por qué difiere, si difiere. -->
+        <th class="hi-col-num hidden" id="hi-th-hecho">Hecho</th>
+        <th class="hidden" id="hi-th-nota">Nota</th>
       </tr>
     </thead>
     <tbody id="hi-items"></tbody>
@@ -570,11 +579,12 @@ document.getElementById("form-producto").addEventListener("submit", (e) => {
   const nombre = document.getElementById("p-nombre").value.trim();
   const unidad = document.getElementById("p-unidad").value;
   const categoria = normalizarCategoria(document.getElementById("p-categoria").value, catalogoProductos);
+  const esPan = document.getElementById("p-es-pan").checked;
   if (!nombre) return;
   const btn = e.target.querySelector('button[type="submit"]');
   conCarga(btn, async () => {
     await addDoc(collection(db, "productos"), {
-      nombre, unidad, categoria: categoria || null, activo: true, creadoEn: serverTimestamp()
+      nombre, unidad, categoria: categoria || null, activo: true, esPan, creadoEn: serverTimestamp()
     });
     e.target.reset();
   }, "Agregando…");
@@ -640,7 +650,7 @@ function pintarVistaProducto(card, p){
   card.innerHTML = `
     <div>
       <div class="producto-card-nombre${p.activo ? "" : " line-through"}">${escapeHtml(p.nombre)}</div>
-      <div class="producto-card-meta">${escapeHtml(etiquetaUnidad(p.unidad))}${p.categoria ? ' · ' + escapeHtml(p.categoria) : ''}</div>
+      <div class="producto-card-meta">${escapeHtml(etiquetaUnidad(p.unidad))}${p.categoria ? ' · ' + escapeHtml(p.categoria) : ''}${p.esPan ? ' · <span class="badge badge-pendiente">Panadería</span>' : ''}</div>
     </div>
     <label class="producto-card-toggle">
       <span class="toggle-texto">${p.activo ? "Activo" : "Inactivo"}</span>
@@ -706,6 +716,10 @@ function pintarEdicionProducto(card, p){
       </div>
       <input type="text" class="edit-categoria w-full border rounded px-2 py-1.5 text-sm" style="border-color:var(--linea)"
         list="lista-categorias" placeholder="Categoría (opcional)" value="${escapeHtml(p.categoria || "")}">
+      <label class="flex items-center gap-2 text-xs" style="color:var(--tinta-suave)">
+        <input type="checkbox" class="edit-es-pan rounded" ${p.esPan ? "checked" : ""}>
+        Se hace en la panadería
+      </label>
     </div>
     <div class="producto-card-acciones">
       <button type="button" class="btn-guardar-producto">Guardar</button>
@@ -719,10 +733,11 @@ function pintarEdicionProducto(card, p){
     const nombre = card.querySelector(".edit-nombre").value.trim();
     const unidad = card.querySelector(".edit-unidad").value;
     const categoria = normalizarCategoria(card.querySelector(".edit-categoria").value, catalogoProductos);
+    const esPan = card.querySelector(".edit-es-pan").checked;
     if (!nombre) { await alertaBonita("El nombre no puede quedar vacío.", { tipo: "advertencia" }); return; }
     conCarga(btnGuardar, async () => {
-      await updateDoc(doc(db, "productos", p.id), { nombre, unidad, categoria: categoria || null });
-      Object.assign(p, { nombre, unidad, categoria: categoria || null });
+      await updateDoc(doc(db, "productos", p.id), { nombre, unidad, categoria: categoria || null, esPan });
+      Object.assign(p, { nombre, unidad, categoria: categoria || null, esPan });
       pintarVistaProducto(card, p);
     }, "Guardando…");
   });
@@ -802,7 +817,7 @@ let catalogoProductos = [];
 // "Activos" (pendiente + en_preparacion) es la vista por defecto: lo que
 // hay que atender hoy. Cancelados y rechazados quedan afuera a propósito;
 // solo aparecen si se los filtra puntualmente o se elige "Todos".
-let filtroActual = "pendiente,en_preparacion";
+let filtroActual = "pendiente,en_preparacion,rechazado_pan";
 let rangoPedidosDias = 1; // null = sin límite de fecha ("Todos")
 const TANDA_PEDIDOS = 50;
 let limitePedidos = TANDA_PEDIDOS;
@@ -822,18 +837,49 @@ function badgeHtml(estado){
   return `<span class="badge ${clase}">${texto}</span>`;
 }
 
+// Badge chico para el estado del pan, independiente del estado general del
+// pedido — así se ve de un vistazo, sin entrar al modal, si ya se puede
+// despachar. Un pedido sin productos de panadería no tiene panEstado y
+// no muestra nada acá.
+function badgePan(panEstado){
+  if (!panEstado) return "";
+  const mapa = {
+    pendiente: ["badge-pendiente", "Pan: pendiente"],
+    en_proceso: ["badge-preparacion", "Pan: en proceso"],
+    listo: ["badge-recibido", "Pan: listo"],
+    rechazado: ["badge-rechazado", "Pan: rechazado"],
+  };
+  const [clase, texto] = mapa[panEstado] || ["badge-pendiente", "Pan: " + panEstado];
+  return `<span class="badge ${clase}">${texto}</span>`;
+}
+
 function tieneDiferencias(pedido){
   return (pedido.items || []).some(it => it.cantidadEnviada != null && Number(it.cantidadEnviada) !== Number(it.cantidadPedida));
 }
 
+// Fechas siempre en formato argentino (dd/mm/aaaa), hora de 24 h (sin
+// a. m. / p. m.) y en la zona horaria de Argentina, sin depender de cómo
+// tenga configurado el idioma o la hora el dispositivo. Se usa hourCycle
+// "h23" y no hour12:false a propósito: hour12:false puede mostrar la
+// medianoche como 24:05 en vez de 00:05.
+const OPCIONES_FECHA_AR = {
+  timeZone: "America/Argentina/Buenos_Aires",
+  hourCycle: "h23",
+  day: "2-digit", month: "2-digit", year: "numeric",
+  hour: "2-digit", minute: "2-digit",
+};
+function formatearFechaAR(fecha){
+  return fecha.toLocaleString("es-AR", OPCIONES_FECHA_AR);
+}
+
 function fechaLegible(ts){
   if (!ts || !ts.toDate) return "";
-  return ts.toDate().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  return formatearFechaAR(ts.toDate());
 }
 
 function fechaLegibleMs(ms){
   if (!ms) return "";
-  return new Date(ms).toLocaleString("es-AR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  return formatearFechaAR(new Date(ms));
 }
 
 const textoEstado = {
@@ -843,6 +889,10 @@ const textoEstado = {
   recibido: "Confirmado por la sucursal",
   cancelado: "Cancelado por la sucursal",
   rechazado: "Rechazado por central",
+  pan_en_proceso: "Panadería puso el pan en proceso",
+  pan_listo: "Panadería marcó el pan como listo",
+  rechazado_pan: "Rechazado por la panadería",
+  pan_rechazado: "Panadería rechazó el pan de este pedido",
 };
 
 function renderHistorial(pedido){
@@ -864,15 +914,33 @@ function renderHistorial(pedido){
 // atender, después lo ya despachado, al final lo que quedó fuera de curso.
 // Se usa tanto para agrupar "Activos"/"Todos" como para dar título a cada
 // sección.
-const ORDEN_ESTADOS = ["pendiente", "en_preparacion", "enviado", "recibido", "cancelado", "rechazado"];
+const ORDEN_ESTADOS = ["pendiente", "en_preparacion", "rechazado_pan", "enviado", "recibido", "cancelado", "rechazado"];
 const TITULOS_ESTADOS = {
   pendiente: "Pendientes",
   en_preparacion: "En preparación",
+  rechazado_pan: "Rechazados, con el pan en curso",
   enviado: "Enviados",
   recibido: "Recibidos",
   cancelado: "Cancelados",
   rechazado: "Rechazados",
 };
+
+// Pedido que central rechazó pero cuyo pan sigue vivo: el pan no depende de
+// central, así que la panadería lo hace (o lo rechaza) por su cuenta y, cuando
+// está listo, central puede enviarlo solo. Mientras eso pasa el pedido NO
+// tiene que desaparecer de la vista de trabajo: se muestra en su propio grupo
+// ("rechazado_pan", que no es un estado real guardado en Firestore, solo un
+// grupo de la lista). Cuando el pan sale (estado "enviado") o la panadería lo
+// rechaza (panEstado "rechazado") pasa a su grupo normal.
+function panSigueEnCurso(p){
+  return p.estado === "rechazado" && ["pendiente", "en_proceso", "listo"].includes(p.panEstado);
+}
+function grupoDe(p){
+  return panSigueEnCurso(p) ? "rechazado_pan" : p.estado;
+}
+function textoPanEnCurso(panEstado){
+  return { pendiente: "pan pendiente", en_proceso: "el pan se está haciendo", listo: "pan listo para enviar" }[panEstado] || "";
+}
 
 // filtroActual guarda uno o más estados separados por coma ("pendiente,en_preparacion"
 // para "Activos"), un solo estado ("pendiente"), o "" para "Todos" (sin filtrar).
@@ -888,11 +956,12 @@ function crearTicketPedido(p){
       <div class="num-mono text-lg font-700 shrink-0">#${p.numero ?? "—"}</div>
       <div class="min-w-0">
         <div class="font-600 truncate">${p.sucursalNombre || "Sucursal"}</div>
-        <div class="text-xs truncate" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos</div>
+        <div class="text-xs truncate" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${(p.items||[]).length} productos${panSigueEnCurso(p) ? " · " + textoPanEnCurso(p.panEstado) : ""}</div>
       </div>
     </div>
     <div class="flex items-center gap-2 shrink-0">
       ${tieneDiferencias(p) ? '<span class="badge badge-diferencia">Diferencia</span>' : ''}
+      ${badgePan(p.panEstado)}
       ${badgeHtml(p.estado)}
     </div>`;
   row.addEventListener("click", () => abrirModal(p));
@@ -930,7 +999,7 @@ function renderPedidos(){
   cont.innerHTML = "";
 
   const estados = estadosDelFiltro(filtroActual);
-  const filtrados = pedidosVisibles.filter(p => estados.includes(p.estado));
+  const filtrados = pedidosVisibles.filter(p => estados.includes(grupoDe(p)));
   const vacioEl = document.getElementById("pedidos-vacio");
   vacioEl.innerHTML = PEDIDOS_VACIO_HTML;
   vacioEl.classList.toggle("hidden", filtrados.length > 0);
@@ -943,7 +1012,7 @@ function renderPedidos(){
     filtrados.forEach(p => cont.appendChild(crearTicketPedido(p)));
   } else {
     estados.forEach(estado => {
-      const delGrupo = filtrados.filter(p => p.estado === estado);
+      const delGrupo = filtrados.filter(p => grupoDe(p) === estado);
       if (delGrupo.length === 0) return;
       const seccion = document.createElement("div");
       seccion.className = "mb-6";
@@ -996,7 +1065,18 @@ function suscribirPedidos(){
       renderPedidos();
       if (pedidoActivo) {
         const actualizado = pedidosVisibles.find(p => p.id === pedidoActivo.id);
-        if (actualizado) pedidoActivo = actualizado;
+        if (actualizado) {
+          pedidoActivo = actualizado;
+          // Si el modal de este pedido está abierto, refrescamos en vivo el
+          // estado del pan (badge, ayuda, botón de envío), sus filas de solo
+          // lectura en la tabla y el historial — pero nunca los inputs de
+          // los productos normales, que central puede estar completando en
+          // este momento.
+          if (!document.getElementById("modal").classList.contains("hidden")) {
+            actualizarInfoPan(actualizado);
+            actualizarFilasPanYHistorial(actualizado);
+          }
+        }
       }
     },
     (err) => {
@@ -1017,7 +1097,7 @@ document.querySelectorAll("#filtros-estado .filtro-btn").forEach(btn => {
     renderPedidos();
   });
 });
-document.querySelector('#filtros-estado .filtro-btn[data-estado="pendiente,en_preparacion"]').classList.add("activo");
+document.querySelector('#filtros-estado .filtro-btn[data-estado="pendiente,en_preparacion,rechazado_pan"]').classList.add("activo");
 
 document.querySelectorAll("#filtros-rango .filtro-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -1091,12 +1171,101 @@ const AYUDA_ETAPA = {
   rechazado: "Vos rechazaste este pedido.",
 };
 
+// Un pedido "solo de pan" es el que no tiene NINGÚN ítem fuera del catálogo
+// de panadería: central no tiene nada que armar ni que decidir ahí, lo hace
+// todo la panadería. Por eso en esos pedidos central solo puede imprimir la
+// hoja; pasar a preparación y rechazar le corresponden al panadero (ver
+// panaderia.html). En los pedidos mixtos no cambia nada: central sigue
+// mandando como siempre.
+function esSoloPan(pedido){
+  const items = pedido.items || [];
+  return items.length > 0 && items.every(it => it.esPan);
+}
+
+// Recalcula y refresca solo lo que depende del estado del pan (badge, texto
+// de ayuda y si se puede confirmar el envío). Se usa al abrir el modal y
+// también cuando panadería actualiza el pedido mientras central lo tiene
+// abierto, para no dejar el botón trabado en "deshabilitado" hasta que
+// alguien cierre y reabra. No toca la tabla de ítems ni las notas: esas se
+// completan a mano y no queremos pisarle a central algo que esté escribiendo.
+function actualizarInfoPan(pedido){
+  document.getElementById("modal-badge").innerHTML = badgeHtml(pedido.estado) + " " + badgePan(pedido.panEstado);
+  const soloPan = esSoloPan(pedido);
+  // Pedido de solo pan con el pan ya terminado: no hay nada que central tenga
+  // que armar, así que se saltea la etapa "en preparación" y se despacha
+  // directo desde "pendiente", con las cantidades que cargó la panadería.
+  const despachoDirecto = soloPan && pedido.estado === "pendiente" && pedido.panEstado === "listo";
+  // Pedido mixto (pan + otros productos) todavía en preparación, pero el pan
+  // no está listo NI rechazado: central puede seguir armando el resto, pero
+  // no puede despachar sin saber qué pasó con el pan, así que el botón de
+  // confirmar envío se deshabilita en vez de ocultarse (para que quede claro
+  // que hay algo pendiente, no que falta terminar de cargar cantidades). Si
+  // la panadería lo rechazó, en cambio, ya no hay nada que esperar: central
+  // puede despachar el resto sin el pan (que queda en 0, con el motivo).
+  const panRechazado = pedido.panEstado === "rechazado";
+  const esperandoPan = pedido.estado === "en_preparacion" && !!pedido.panEstado && !["listo", "rechazado"].includes(pedido.panEstado);
+  // Rechazado por central pero con el pan todavía en curso: se puede enviar
+  // solo el pan, pero recién cuando la panadería lo marque como listo.
+  const envioSoloPan = panSigueEnCurso(pedido);
+  const bloqueaEnvio = esperandoPan || (envioSoloPan && pedido.panEstado !== "listo");
+  document.getElementById("modal-etapa-info").textContent =
+    despachoDirecto
+      ? "La panadería ya terminó este pedido. Revisá las cantidades y despachalo."
+      : (panRechazado && pedido.estado === "en_preparacion")
+      ? "La panadería rechazó el pan de este pedido (ver motivo en el historial). Podés despachar el resto sin el pan."
+      : esperandoPan
+      ? "En preparación. El pan de este pedido todavía no está listo — no se puede confirmar el envío hasta que la panadería lo termine."
+      : (soloPan && pedido.estado === "pendiente")
+      ? "Este pedido es solo de pan. Imprimí la hoja si la necesitás; ponerlo en preparación o rechazarlo lo hace la panadería."
+      : envioSoloPan
+      ? (pedido.panEstado === "listo"
+          ? "Rechazaste el resto del pedido, pero el pan ya está listo: podés enviarlo solo."
+          : "Rechazaste el resto del pedido, pero el pan se está haciendo (eso lo decide la panadería). Cuando esté listo vas a poder enviarlo solo.")
+      : (AYUDA_ETAPA[pedido.estado] || "");
+
+  const btnConfirmarEnvio = document.getElementById("btn-confirmar-envio");
+  btnConfirmarEnvio.classList.toggle("hidden", pedido.estado !== "en_preparacion" && !despachoDirecto && !envioSoloPan);
+  btnConfirmarEnvio.textContent = envioSoloPan ? "Enviar solo el pan" : "Confirmar envío";
+  btnConfirmarEnvio.disabled = bloqueaEnvio;
+  btnConfirmarEnvio.style.opacity = bloqueaEnvio ? "0.5" : "";
+  btnConfirmarEnvio.style.cursor = bloqueaEnvio ? "not-allowed" : "";
+  btnConfirmarEnvio.title = bloqueaEnvio ? "Esperando que la panadería termine el pan" : "";
+
+  return { soloPan, despachoDirecto, esperandoPan };
+}
+
+// Refresca en vivo las filas de pan (las únicas de solo lectura mientras el
+// pedido está en preparación) y el historial. Nunca toca las filas de
+// productos normales ni sus inputs: esas dependen de lo que central esté
+// completando a mano en ese momento.
+function actualizarFilasPanYHistorial(pedido){
+  renderHistorial(pedido);
+
+  // Mientras el pedido está "pendiente" y no es despacho directo, la tabla
+  // entera muestra guiones (nada se decidió todavía) — no hay nada de pan
+  // que actualizar ahí.
+  const despachoDirecto = esSoloPan(pedido) && pedido.estado === "pendiente" && pedido.panEstado === "listo";
+  if (pedido.estado === "pendiente" && !despachoDirecto) return;
+
+  const tbody = document.getElementById("modal-items");
+  (pedido.items || []).forEach((it, idx) => {
+    if (!it.esPan) return;
+    const fila = tbody.querySelector(`tr[data-idx="${idx}"]`);
+    if (!fila) return;
+    const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+    const difiere = Number(enviada) !== Number(it.cantidadPedida);
+    fila.querySelector(".celda-enviado").innerHTML =
+      `<span class="num-mono${difiere ? " font-700" : ""}"${difiere ? ' style="color:var(--rojo)"' : ""}>${enviada}</span>`;
+    fila.querySelector(".celda-nota").innerHTML =
+      `<span class="text-xs" style="color:var(--tinta-suave)">${escapeHtml(it.notaItem || "—")}</span>`;
+  });
+}
+
 function abrirModal(pedido){
   pedidoActivo = pedido;
   document.getElementById("modal-numero").textContent = "#" + (pedido.numero ?? "—");
   document.getElementById("modal-sucursal").textContent = pedido.sucursalNombre || "";
-  document.getElementById("modal-badge").innerHTML = badgeHtml(pedido.estado);
-  document.getElementById("modal-etapa-info").textContent = AYUDA_ETAPA[pedido.estado] || "";
+  const { soloPan, despachoDirecto } = actualizarInfoPan(pedido);
 
   const notaSucursalWrap = document.getElementById("modal-nota-sucursal-wrap");
   if (pedido.notaSucursalPedido) {
@@ -1117,16 +1286,21 @@ function abrirModal(pedido){
     const tr = document.createElement("tr");
     tr.className = "border-b";
     tr.style.borderColor = "var(--linea)";
+    tr.dataset.idx = idx; // permite ubicar la fila después, para refrescar en vivo la parte de pan sin redibujar toda la tabla
 
     let celdaEnviado, celdaNota;
-    if (pedido.estado === "pendiente") {
+    if ((pedido.estado === "pendiente" && !despachoDirecto) || (pedido.estado === "rechazado" && !it.esPan && (pedido.items || []).some(x => x.esPan))) {
       celdaEnviado = `<span style="color:var(--tinta-tenue)">—</span>`;
       celdaNota = `<span style="color:var(--tinta-tenue)">—</span>`;
-    } else if (enPreparacion) {
+    } else if (enPreparacion && !it.esPan) {
       const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
       celdaEnviado = `<input type="number" min="0" step="any" data-idx="${idx}" class="input-cant input-enviada border rounded px-2 py-1" style="border-color:var(--linea)" value="${enviada}">`;
       celdaNota = `<input type="text" data-idx="${idx}" class="input-nota-item border rounded px-2 py-1 w-full text-xs" style="border-color:var(--linea)" placeholder="ej: no había stock" value="${escapeHtml(it.notaItem || "")}">`;
     } else {
+      // Los ítems de pan los completa panadería, no central: se muestran de
+      // solo lectura (con la cantidad y la nota que ya cargaron ellos) igual
+      // que un pedido ya despachado, aunque el pedido en general todavía
+      // esté "en preparación".
       const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
       const difiere = Number(enviada) !== Number(it.cantidadPedida);
       celdaEnviado = `<span class="num-mono${difiere ? " font-700" : ""}"${difiere ? ' style="color:var(--rojo)"' : ""}>${enviada}</span>`;
@@ -1136,8 +1310,8 @@ function abrirModal(pedido){
     tr.innerHTML = `
       <td class="py-2">${escapeHtml(it.nombre)} <span class="text-xs" style="color:var(--tinta-suave)">(${escapeHtml(etiquetaUnidad(it.unidad))})</span></td>
       <td class="py-2 text-right num-mono">${it.cantidadPedida}</td>
-      <td class="py-2 text-right">${celdaEnviado}</td>
-      <td class="py-2">${celdaNota}</td>`;
+      <td class="py-2 text-right celda-enviado">${celdaEnviado}</td>
+      <td class="py-2 celda-nota">${celdaNota}</td>`;
     tbody.appendChild(tr);
   });
 
@@ -1149,12 +1323,14 @@ function abrirModal(pedido){
   const notaCentralLecturaWrap = document.getElementById("modal-nota-central-lectura-wrap");
   const notaRecepcionWrap = document.getElementById("modal-nota-recepcion-wrap");
 
-  if (pedido.estado === "pendiente" || enPreparacion) {
+  // En "pendiente" la nota es el motivo de rechazo; si el pedido es solo de
+  // pan, central no rechaza, así que tampoco hace falta el campo.
+  if (enPreparacion || despachoDirecto || (pedido.estado === "pendiente" && !soloPan)) {
     notaEditarWrap.classList.remove("hidden");
     notaCentralLecturaWrap.classList.add("hidden");
     notaRecepcionWrap.classList.add("hidden");
     document.getElementById("modal-nota-general").value = pedido.notaCentral || "";
-    document.getElementById("modal-nota-general-label").textContent = pedido.estado === "pendiente"
+    document.getElementById("modal-nota-general-label").textContent = (pedido.estado === "pendiente" && !despachoDirecto)
       ? "Nota (solo hace falta si vas a rechazar el pedido)"
       : "Nota general del pedido (opcional; contá acá cualquier diferencia con lo pedido)";
   } else {
@@ -1174,10 +1350,14 @@ function abrirModal(pedido){
   }
 
   // Botones: uno por etapa, nada de mostrar acciones que ya no corresponden.
-  document.getElementById("btn-imprimir").classList.toggle("hidden", pedido.estado !== "pendiente");
-  document.getElementById("btn-en-preparacion").classList.toggle("hidden", pedido.estado !== "pendiente");
-  document.getElementById("btn-rechazar").classList.toggle("hidden", pedido.estado !== "pendiente");
-  document.getElementById("btn-confirmar-envio").classList.toggle("hidden", !enPreparacion);
+  const recienLlegado = pedido.estado === "pendiente";
+  document.getElementById("btn-imprimir").classList.toggle("hidden", !recienLlegado);
+  // Pedido de solo pan: central queda como espectadora hasta que la panadería
+  // resuelva. Las dos acciones que implican decidir sobre el pedido
+  // (prepararlo o rechazarlo) se ocultan.
+  document.getElementById("btn-en-preparacion").classList.toggle("hidden", !recienLlegado || soloPan);
+  document.getElementById("btn-rechazar").classList.toggle("hidden", !recienLlegado || soloPan);
+  // btn-confirmar-envio (visibilidad + deshabilitado) ya lo maneja actualizarInfoPan.
   // El remito solo tiene sentido una vez despachado (hay cantidades enviadas
   // para comparar contra lo pedido); se puede reimprimir después si hace falta.
   document.getElementById("btn-imprimir-remito").classList.toggle("hidden", !["enviado", "recibido"].includes(pedido.estado));
@@ -1207,6 +1387,25 @@ document.getElementById("btn-confirmar-envio").addEventListener("click", async (
   const cantidadesInputs = document.querySelectorAll(".input-enviada");
   const notasInputs = document.querySelectorAll(".input-nota-item");
   const items = pedidoActivo.items.map((it, idx) => ({ ...it }));
+  const soloElPan = panSigueEnCurso(pedidoActivo);
+  if (soloElPan) {
+    if (pedidoActivo.panEstado !== "listo") {
+      await alertaBonita("El pan todavía no está listo. Podés enviarlo apenas la panadería lo marque como listo.", { tipo: "advertencia" });
+      return;
+    }
+    // Central rechazó el resto: lo que no es pan sale con cantidad 0 y el
+    // motivo del rechazo, así el remito y la sucursal lo ven como diferencia.
+    const motivo = pedidoActivo.notaCentral || "Rechazado por central";
+    items.forEach(it => {
+      if (!it.esPan) { it.cantidadEnviada = 0; it.notaItem = motivo; }
+    });
+  }
+
+  // En el despacho directo de un pedido de solo pan no hay inputs en la
+  // tabla: lo que se envía es lo que dejó cargado la panadería.
+  items.forEach(it => {
+    if (it.cantidadEnviada == null) it.cantidadEnviada = it.cantidadPedida;
+  });
 
   let faltaNota = false;
   cantidadesInputs.forEach(inp => {
@@ -1226,21 +1425,23 @@ document.getElementById("btn-confirmar-envio").addEventListener("click", async (
     return;
   }
 
-  const notaGeneral = document.getElementById("modal-nota-general").value.trim();
+  // Si se envía solo el pan, la nota general sigue siendo el motivo del
+  // rechazo (el textarea está oculto en este estado y puede tener texto de
+  // otro pedido, por eso no se lee de ahí).
+  const notaGeneral = soloElPan ? (pedidoActivo.notaCentral || "") : document.getElementById("modal-nota-general").value.trim();
+  const notaHistorial = soloElPan ? "Se envió solo el pan; el resto del pedido quedó rechazado" : (notaGeneral || "");
   conCarga(e.currentTarget, async () => {
     await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
       items,
       estado: "enviado",
       notaCentral: notaGeneral,
       actualizadoEn: serverTimestamp(),
-      historial: arrayUnion({ estado: "enviado", en: Date.now(), por: miNombre, nota: notaGeneral || "" }),
+      historial: arrayUnion({ estado: "enviado", en: Date.now(), por: miNombre, nota: notaHistorial }),
     });
     document.getElementById("modal").classList.add("hidden");
     // El remito hay que abrocharlo a la hoja original ahora, con el camión
     // esperando — se imprime de una, con la hora de este mismo despacho.
-    const fechaEnvio = new Date().toLocaleString("es-AR", {
-      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-    });
+    const fechaEnvio = formatearFechaAR(new Date());
     imprimirRemito(pedidoActivo, items, notaGeneral, fechaEnvio);
   }, "Confirmando…");
 });
@@ -1252,14 +1453,19 @@ document.getElementById("btn-rechazar").addEventListener("click", async (e) => {
     await alertaBonita("Para rechazar un pedido hay que dejar una nota explicando el motivo.", { tipo: "advertencia" });
     return;
   }
+  const tienePan = (pedidoActivo.items || []).some(it => it.esPan);
   const confirmado = await confirmarBonito(
-    `¿Rechazar el pedido #${pedidoActivo.numero ?? ""}? La sucursal va a ver este motivo, y el pedido no se va a preparar ni despachar.`,
+    `¿Rechazar el pedido #${pedidoActivo.numero ?? ""}? La sucursal va a ver este motivo, y el pedido no se va a preparar ni despachar.` +
+    (tienePan ? " El pan no se rechaza con esto: lo decide la panadería y, cuando esté listo, vas a poder enviarlo solo." : ""),
     { tipo: "peligro", textoConfirmar: "Rechazar pedido" }
   );
   if (!confirmado) return;
   conCarga(btn, async () => {
     await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
       estado: "rechazado",
+      // OJO: no se toca panEstado. Central rechaza lo suyo (los productos que
+      // no son de pan); el pan no depende de central; la panadería sigue
+      // viendo el pedido y decide por su cuenta si lo hace o lo rechaza.
       notaCentral: notaGeneral,
       actualizadoEn: serverTimestamp(),
       historial: arrayUnion({ estado: "rechazado", en: Date.now(), por: miNombre, nota: notaGeneral }),
@@ -1277,13 +1483,18 @@ function prepararImpresion(idHoja){
 document.getElementById("btn-imprimir").addEventListener("click", () => {
   const p = pedidoActivo;
   const items = p.items || [];
+  // Mismo criterio que en abrirModal: si panadería ya hizo y cargó todo,
+  // esto ya no es una lista para ir a armar, es la confirmación de lo hecho.
+  const despachoDirecto = esSoloPan(p) && p.estado === "pendiente" && p.panEstado === "listo";
+
+  document.getElementById("hi-th-cantidad").textContent = despachoDirecto ? "Pedido" : "Cantidad";
+  document.getElementById("hi-th-hecho").classList.toggle("hidden", !despachoDirecto);
+  document.getElementById("hi-th-nota").classList.toggle("hidden", !despachoDirecto);
 
   document.getElementById("hi-numero").textContent = "#" + (p.numero ?? "—");
   document.getElementById("hi-sucursal").textContent = p.sucursalNombre || "";
   document.getElementById("hi-fecha").textContent = fechaLegible(p.creadoEn);
-  document.getElementById("hi-fecha-impresion").textContent = new Date().toLocaleString("es-AR", {
-    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-  });
+  document.getElementById("hi-fecha-impresion").textContent = formatearFechaAR(new Date());
   const notaSucursal = (p.notaSucursalPedido || "").trim();
   const wrapNotaSucursal = document.getElementById("hi-nota-sucursal-wrap");
   wrapNotaSucursal.classList.toggle("hidden", !notaSucursal);
@@ -1294,8 +1505,19 @@ document.getElementById("btn-imprimir").addEventListener("click", () => {
   // central — ese campo se completa después, durante la preparación, y se
   // imprime en el remito, no acá.
   document.getElementById("hi-nota-central-wrap").classList.add("hidden");
-  document.getElementById("hi-resumen").innerHTML =
-    `<span class="hi-resumen-texto">${items.length}${items.length === 1 ? " producto" : " productos"}</span>`;
+
+  const resumenTexto = `<span class="hi-resumen-texto">${items.length}${items.length === 1 ? " producto" : " productos"}</span>`;
+  if (despachoDirecto) {
+    // Mismo resumen de diferencias que el remito, para que se note de un
+    // vistazo si lo que hizo panadería coincide con lo pedido.
+    const cantDif = items.filter(it => Number(it.cantidadEnviada ?? it.cantidadPedida) !== Number(it.cantidadPedida)).length;
+    const badgeResumen = cantDif > 0
+      ? `<span class="hi-badge hi-badge-dif">${cantDif} con diferencia${cantDif === 1 ? "" : "s"}</span>`
+      : `<span class="hi-badge hi-badge-ok">✓ Sin diferencias</span>`;
+    document.getElementById("hi-resumen").innerHTML = resumenTexto + badgeResumen;
+  } else {
+    document.getElementById("hi-resumen").innerHTML = resumenTexto;
+  }
 
   // El pedido no guarda la categoría de cada ítem, así que la sacamos del
   // catálogo actual (por productoId) para poder agrupar la hoja. Agrupamos
@@ -1321,18 +1543,29 @@ document.getElementById("btn-imprimir").addEventListener("click", () => {
       if (mostrarCategorias) {
         const trCat = document.createElement("tr");
         trCat.className = "hi-categoria";
-        trCat.innerHTML = `<td colspan="4">${escapeHtml(etiqueta)}</td>`;
+        trCat.innerHTML = `<td colspan="${despachoDirecto ? 5 : 3}">${escapeHtml(etiqueta)}</td>`;
         tbody.appendChild(trCat);
       }
       itemsCat
         .sort((a, b) => a.nombre.localeCompare(b.nombre))
         .forEach(it => {
           const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td class="hi-col-check">&#9633;</td>
-            <td>${escapeHtml(it.nombre)}</td>
-            <td class="hi-col-num num-mono">${it.cantidadPedida}</td>
-            <td>${escapeHtml(etiquetaUnidad(it.unidad))}</td>`;
+          if (despachoDirecto) {
+            const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+            const difiere = Number(enviada) !== Number(it.cantidadPedida);
+            if (difiere) tr.classList.add("hi-fila-dif");
+            tr.innerHTML = `
+              <td>${escapeHtml(it.nombre)}</td>
+              <td class="hi-col-num num-mono">${it.cantidadPedida}</td>
+              <td>${escapeHtml(etiquetaUnidad(it.unidad))}</td>
+              <td class="hi-col-num num-mono${difiere ? " font-700" : ""}">${enviada}</td>
+              <td>${escapeHtml(it.notaItem || "")}</td>`;
+          } else {
+            tr.innerHTML = `
+              <td>${escapeHtml(it.nombre)}</td>
+              <td class="hi-col-num num-mono">${it.cantidadPedida}</td>
+              <td>${escapeHtml(etiquetaUnidad(it.unidad))}</td>`;
+          }
           tbody.appendChild(tr);
         });
     });
@@ -1597,9 +1830,7 @@ function imprimirHistorial(nombre, pedidos){
   document.getElementById("hh-periodo").textContent = fechas.length
     ? `${fechaLegibleMs(Math.min(...fechas))} — ${fechaLegibleMs(Math.max(...fechas))}`
     : "—";
-  document.getElementById("hh-fecha-impresion").textContent = new Date().toLocaleString("es-AR", {
-    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-  });
+  document.getElementById("hh-fecha-impresion").textContent = formatearFechaAR(new Date());
 
   const tbody = document.getElementById("hh-items");
   tbody.innerHTML = "";
