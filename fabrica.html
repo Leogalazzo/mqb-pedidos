@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos — Fábrica</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="estilos.css">
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#084788">
+<link rel="icon" type="image/png" sizes="192x192" href="/192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/512.png">
+<link rel="apple-touch-icon" href="/192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MQB Pedidos">
+</head>
+<body class="min-h-screen">
+
+<div id="cargando-pagina"><span class="spinner spinner-oscuro"></span>Cargando…</div>
+
+<!-- Botón hamburguesa: solo visible en mobile, fijo arriba a la izquierda -->
+<button id="btn-menu" class="menu-hamburguesa md:hidden no-imprimir" aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <line x1="3" y1="12" x2="21" y2="12"></line>
+    <line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+</button>
+
+<!-- Overlay detrás del sidebar en mobile: tocarlo cierra el menú -->
+<div id="sidebar-overlay" class="sidebar-overlay hidden md:hidden no-imprimir"></div>
+
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar no-imprimir w-64 shrink-0 border-r px-5 py-7 flex flex-col justify-between" style="border-color:var(--linea)">
+    <button id="btn-cerrar-menu" class="btn-cerrar-menu md:hidden" aria-label="Cerrar menú">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+    <div>
+      <div class="sidebar-logo">
+        <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers">
+      </div>
+      <div class="text-xs mb-8 text-center" style="color:var(--tinta-suave)">Fábrica</div>
+    </div>
+    <div class="pt-5 border-t" style="border-color:var(--linea)">
+      <div id="usuario-nombre" class="text-sm font-600 mb-2"></div>
+      <button id="btn-logout" class="link-pie-sidebar text-xs" style="color:var(--tinta-suave)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 px-4 pt-20 pb-6 md:px-8 md:pt-6 no-imprimir">
+    <h1 class="font-display text-2xl font-700 mb-5">Pedidos para producción</h1>
+    <p class="text-sm mb-5" style="color:var(--tinta-suave)">
+      Acá llegan los pedidos de las dos sucursales. El pan no aparece: eso lo
+      maneja panadería aparte.
+    </p>
+
+    <div class="filtros-panel">
+      <div class="filtros-fila">
+        <span class="filtros-etiqueta">Estado</span>
+        <div class="filtros-chips" id="filtros-fabrica">
+          <button data-estado="" class="filtro-btn chip-btn">Todos</button>
+          <button data-estado="pendiente" class="filtro-btn chip-btn">Pendientes</button>
+          <button data-estado="en_preparacion" class="filtro-btn chip-btn">En preparación</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="lista-pedidos" class="space-y-3"></div>
+    <div id="pedidos-vacio" class="estado-vacio hidden"></div>
+  </main>
+</div>
+
+<!-- Modal detalle de pedido -->
+<div id="modal" class="no-imprimir fixed inset-0 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.65)">
+  <div class="modal-caja rounded-xl max-w-2xl w-full p-4 sm:p-6" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
+    <div class="flex items-start justify-between mb-1 modal-fijo">
+      <div>
+        <div class="font-display text-xl font-700">Pedido <span id="modal-numero" class="num-mono"></span></div>
+        <div class="text-sm" style="color:var(--tinta-suave)" id="modal-sucursal"></div>
+      </div>
+      <button id="modal-cerrar" class="text-2xl leading-none" style="color:var(--tinta-suave)">&times;</button>
+    </div>
+    <div id="modal-badge" class="mb-2 modal-fijo"></div>
+    <div id="modal-etapa-info" class="aviso-etapa modal-fijo"></div>
+
+    <div class="modal-cuerpo">
+      <div class="tabla-scroll mb-4">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
+              <th class="py-2 font-600">Producto</th>
+              <th class="py-2 font-600 text-right">Pedido</th>
+              <th class="py-2 font-600 text-right">Enviar</th>
+              <th class="py-2 font-600">Nota (si difiere)</th>
+            </tr>
+          </thead>
+          <tbody id="modal-items"></tbody>
+        </table>
+      </div>
+
+      <div id="modal-nota-sucursal-wrap" class="mb-4 text-sm hidden">
+        <span class="font-600">Nota de la sucursal al pedir:</span> <span id="modal-nota-sucursal-pedido"></span>
+      </div>
+
+      <!-- Editable solo mientras el pedido está en preparación: aclaraciones
+           sobre lo que efectivamente se termina enviando. -->
+      <div id="modal-nota-general-editar-wrap" class="mb-4 hidden">
+        <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Nota general del pedido (opcional; contá acá cualquier diferencia con lo pedido)</label>
+        <textarea id="modal-nota-general" rows="2" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-botones mb-5 modal-fijo">
+      <button id="btn-imprimir" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Imprimir hoja de producción</button>
+      <button id="btn-en-preparacion" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Marcar en preparación</button>
+      <button id="btn-confirmar-envio" class="hidden px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--verde)">Confirmar envío</button>
+    </div>
+
+    <div class="pt-4 border-t modal-fijo" style="border-color:var(--linea)">
+      <div class="text-xs font-600 mb-2" style="color:var(--tinta-suave)">Historial</div>
+      <ul id="modal-historial" class="text-xs space-y-1" style="color:var(--tinta-suave)"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- Hoja de impresión: pedido original (para ir a armarlo) -->
+<div id="hoja-impresion" class="hoja-print">
+  <header class="hi-encabezado">
+    <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers" class="hi-logo">
+    <div>
+      <div class="hi-nombre">Más que Burgers</div>
+      <div class="hi-subtitulo">Hoja de producción — pedido entre sucursales</div>
+    </div>
+  </header>
+
+  <div class="hi-meta">
+    <div class="hi-meta-item hi-meta-numero">
+      <span class="hi-meta-label">Pedido</span>
+      <span class="hi-meta-valor num-mono" id="hi-numero"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Sucursal</span>
+      <span class="hi-meta-valor" id="hi-sucursal"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Fecha del pedido</span>
+      <span class="hi-meta-valor" id="hi-fecha"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Impreso</span>
+      <span class="hi-meta-valor" id="hi-fecha-impresion"></span>
+    </div>
+  </div>
+
+  <table class="hi-tabla">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="hi-col-num">Cantidad</th>
+        <th>Unidad</th>
+      </tr>
+    </thead>
+    <tbody id="hi-items"></tbody>
+  </table>
+  <div class="hi-resumen" id="hi-resumen"></div>
+
+  <div id="hi-nota-sucursal-wrap" class="hi-nota hidden">
+    <span class="hi-nota-label">Nota de la sucursal</span><span id="hi-nota-sucursal"></span>
+  </div>
+  <div id="hi-nota-pan-wrap" class="hi-nota hidden">
+    <span class="hi-nota-label">Aviso</span><span>Este pedido también incluye pan, que se prepara aparte en panadería.</span>
+  </div>
+</div>
+
+<!-- Hoja de impresión: remito de envío (para abrochar a la hoja original y mandar con el pedido) -->
+<div id="hoja-remito" class="hoja-print">
+  <header class="hi-encabezado">
+    <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers" class="hi-logo">
+    <div>
+      <div class="hi-nombre">Más que Burgers</div>
+      <div class="hi-subtitulo">Remito de envío — diferencias con el pedido</div>
+    </div>
+  </header>
+
+  <div class="hi-meta">
+    <div class="hi-meta-item hi-meta-numero">
+      <span class="hi-meta-label">Pedido</span>
+      <span class="hi-meta-valor num-mono" id="rm-numero"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Sucursal</span>
+      <span class="hi-meta-valor" id="rm-sucursal"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Fecha del pedido</span>
+      <span class="hi-meta-valor" id="rm-fecha-pedido"></span>
+    </div>
+    <div class="hi-meta-item">
+      <span class="hi-meta-label">Fecha de envío</span>
+      <span class="hi-meta-valor" id="rm-fecha-envio"></span>
+    </div>
+  </div>
+
+  <table class="hi-tabla">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="hi-col-num">Pedido</th>
+        <th class="hi-col-num">Enviado</th>
+        <th>Nota</th>
+      </tr>
+    </thead>
+    <tbody id="rm-items"></tbody>
+  </table>
+  <div class="hi-resumen" id="rm-resumen"></div>
+
+  <div id="rm-nota-sucursal-wrap" class="hi-nota hidden">
+    <span class="hi-nota-label">Nota de la sucursal</span><span id="rm-nota-sucursal"></span>
+  </div>
+  <div id="rm-nota-central-wrap" class="hi-nota hidden">
+    <span class="hi-nota-label">Nota</span><span id="rm-nota-central"></span>
+  </div>
+
+  <div class="hi-firma">
+    <div class="hi-firma-campo">
+      <div class="hi-firma-linea"></div>
+      <div class="hi-firma-etiqueta">Entregó (fábrica)</div>
+    </div>
+    <div class="hi-firma-campo">
+      <div class="hi-firma-linea"></div>
+      <div class="hi-firma-etiqueta">Recibió (sucursal)</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  auth, db, onAuthStateChanged, signOut, obtenerPerfil,
+  collection, query, where, orderBy, onSnapshot, updateDoc, doc, serverTimestamp, arrayUnion
+} from "./firebase-config.js";
+import { conCarga, ocultarCargaPagina } from "./ui.js";
+import { alertaBonita } from "./avisos.js";
+
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+const ETIQUETAS_UNIDAD = { kg: "Kilogramos", l: "Litros", un: "Unidades" };
+function etiquetaUnidad(valor){ return ETIQUETAS_UNIDAD[valor] || valor; }
+
+// ---------- Guard de sesión / rol ----------
+let miNombre = "Fábrica";
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { location.href = "index.html"; return; }
+  const perfil = await obtenerPerfil(user);
+  if (perfil.rol !== "fabrica") { location.href = "index.html"; return; }
+  miNombre = perfil.nombre || "Fábrica";
+  document.getElementById("usuario-nombre").textContent = miNombre;
+  mostrarCargandoPedidos();
+  iniciarListeners();
+  ocultarCargaPagina();
+});
+document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
+
+// ---------- Menú hamburguesa (mobile) ----------
+const btnMenu = document.getElementById("btn-menu");
+const btnCerrarMenu = document.getElementById("btn-cerrar-menu");
+const sidebarEl = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
+function abrirMenu(){
+  sidebarEl.classList.add("sidebar-abierto");
+  sidebarOverlay.classList.remove("hidden");
+  btnMenu.setAttribute("aria-expanded", "true");
+}
+function cerrarMenu(){
+  sidebarEl.classList.remove("sidebar-abierto");
+  sidebarOverlay.classList.add("hidden");
+  btnMenu.setAttribute("aria-expanded", "false");
+}
+btnMenu.addEventListener("click", abrirMenu);
+btnCerrarMenu.addEventListener("click", cerrarMenu);
+sidebarOverlay.addEventListener("click", cerrarMenu);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarMenu(); });
+
+// ---------- Badges y fechas ----------
+function badgeHtml(estado){
+  const mapa = {
+    pendiente: ["badge-pendiente", "Pendiente"],
+    en_preparacion: ["badge-preparacion", "En preparación"],
+  };
+  const [clase, texto] = mapa[estado] || ["badge-pendiente", estado];
+  return `<span class="badge ${clase}">${texto}</span>`;
+}
+
+const OPCIONES_FECHA_AR = {
+  timeZone: "America/Argentina/Buenos_Aires",
+  hourCycle: "h23",
+  day: "2-digit", month: "2-digit", year: "numeric",
+  hour: "2-digit", minute: "2-digit",
+};
+function formatearFechaAR(fecha){
+  return fecha.toLocaleString("es-AR", OPCIONES_FECHA_AR);
+}
+function fechaLegible(ts){
+  if (!ts || !ts.toDate) return "";
+  return formatearFechaAR(ts.toDate());
+}
+
+const textoEstado = {
+  pendiente: "Pedido creado",
+  en_preparacion: "Pasó a preparación",
+  enviado: "Despachado",
+  rechazado: "Rechazado por central",
+  pan_en_proceso: "Panadería puso el pan en proceso",
+  pan_listo: "Panadería marcó el pan como listo",
+  pan_rechazado: "Panadería rechazó el pan de este pedido",
+};
+
+function renderHistorial(pedido){
+  const ul = document.getElementById("modal-historial");
+  const eventos = [];
+  eventos.push({ estado: "pendiente", en: pedido.creadoEn?.toMillis?.() ?? null, por: pedido.sucursalNombre, esServidor: true });
+  (pedido.historial || []).forEach(h => eventos.push(h));
+  ul.innerHTML = eventos.map(ev => {
+    const fecha = ev.esServidor ? fechaLegible(pedido.creadoEn) : formatearFechaAR(new Date(ev.en));
+    const nota = ev.nota ? ` — "${ev.nota}"` : "";
+    return `<li>• ${textoEstado[ev.estado] || ev.estado} — ${ev.por || ""} · ${fecha}${nota}</li>`;
+  }).join("");
+}
+
+// ---------- Productos (solo para agrupar la hoja impresa por categoría) ----------
+let catalogoProductos = [];
+
+// ---------- Ítems: fábrica no ve nunca el pan, eso es de panaderia.html ----------
+function itemsFabrica(pedido){
+  return (pedido.items || []).filter(it => !it.esPan);
+}
+function tienePan(pedido){
+  return (pedido.items || []).some(it => it.esPan);
+}
+// Pan de este pedido todavía sin resolver (ni listo ni rechazado): mientras
+// eso pase, fábrica puede seguir armando lo suyo pero no puede confirmar el
+// envío, porque despacharía el pedido sin saber qué pasa con el pan.
+function esperandoPan(pedido){
+  return pedido.estado === "en_preparacion" && tienePan(pedido) && !["listo", "rechazado"].includes(pedido.panEstado);
+}
+
+// ---------- Listado ----------
+let pedidosFabrica = [];
+let filtroFabrica = "";
+let pedidoActivo = null;
+
+const VACIO_HTML = `
+        <div class="estado-vacio-icono">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-6l-2 3h-4l-2-3H2"/>
+            <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+          </svg>
+        </div>
+        <p class="estado-vacio-texto">No hay pedidos en esta categoría</p>`;
+const CARGANDO_HTML = `
+        <div class="estado-vacio-icono"><span class="spinner spinner-oscuro"></span></div>
+        <p class="estado-vacio-texto">Cargando pedidos…</p>`;
+
+function mostrarCargandoPedidos(){
+  document.getElementById("lista-pedidos").innerHTML = "";
+  const vacioEl = document.getElementById("pedidos-vacio");
+  vacioEl.innerHTML = CARGANDO_HTML;
+  vacioEl.classList.remove("hidden");
+}
+
+function renderPedidos(){
+  const cont = document.getElementById("lista-pedidos");
+  cont.innerHTML = "";
+  const estados = filtroFabrica === "" ? ["pendiente", "en_preparacion"] : [filtroFabrica];
+  const filtrados = pedidosFabrica.filter(p => estados.includes(p.estado));
+
+  const vacioEl = document.getElementById("pedidos-vacio");
+  vacioEl.innerHTML = VACIO_HTML;
+  vacioEl.classList.toggle("hidden", filtrados.length > 0);
+
+  filtrados.forEach(p => {
+    const items = itemsFabrica(p);
+    const row = document.createElement("div");
+    row.className = `ticket px-4 py-3 flex items-center justify-between gap-2 cursor-pointer ${p.estado}`;
+    row.innerHTML = `
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="num-mono text-lg font-700 shrink-0">#${p.numero ?? "—"}</div>
+        <div class="min-w-0">
+          <div class="font-600 truncate">${escapeHtml(p.sucursalNombre || "Sucursal")}</div>
+          <div class="text-xs truncate" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${items.length} ${items.length === 1 ? "producto" : "productos"}${tienePan(p) ? " · además incluye pan (aparte)" : ""}</div>
+        </div>
+      </div>
+      <div class="shrink-0">${badgeHtml(p.estado)}</div>`;
+    row.addEventListener("click", () => abrirModal(p));
+    cont.appendChild(row);
+  });
+}
+
+document.querySelectorAll("#filtros-fabrica .filtro-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    filtroFabrica = btn.dataset.estado;
+    document.querySelectorAll("#filtros-fabrica .filtro-btn").forEach(b => b.classList.remove("activo"));
+    btn.classList.add("activo");
+    renderPedidos();
+  });
+});
+document.querySelector('#filtros-fabrica .filtro-btn[data-estado=""]').classList.add("activo");
+
+function iniciarListeners(){
+  onSnapshot(
+    collection(db, "productos"),
+    (snap) => { catalogoProductos = snap.docs.map(d => ({ id: d.id, ...d.data() })); },
+    (err) => console.error("Error leyendo productos:", err)
+  );
+  // Solo los pedidos activos (pendiente/en preparación): una vez despachado,
+  // el pedido sale de esta pantalla — todo lo que pasó queda igual
+  // registrado en central.html. Se descartan acá los pedidos de solo pan
+  // (no hay nada de fábrica en ellos): esos los maneja panadería/central.
+  //
+  // Nota: si Firestore pide crear un índice compuesto para esta consulta
+  // (estado + creadoEn), la consola del navegador trae el link para
+  // crearlo con un clic, igual que en central.html.
+  onSnapshot(
+    query(collection(db, "pedidos"), where("estado", "in", ["pendiente", "en_preparacion"]), orderBy("creadoEn", "desc")),
+    (snap) => {
+      pedidosFabrica = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(p => itemsFabrica(p).length > 0);
+      renderPedidos();
+      if (pedidoActivo) {
+        const actualizado = pedidosFabrica.find(p => p.id === pedidoActivo.id);
+        if (actualizado) {
+          pedidoActivo = actualizado;
+          actualizarFilasYHistorial(actualizado);
+        } else {
+          // Ya no está entre los activos (por ejemplo, central lo rechazó
+          // mientras fábrica lo tenía abierto): se cierra el modal para no
+          // dejar una vista vieja con botones que ya no corresponden.
+          pedidoActivo = null;
+          document.getElementById("modal").classList.add("hidden");
+          document.getElementById("modal").classList.remove("flex");
+        }
+      }
+    },
+    (err) => console.error("Error leyendo pedidos:", err)
+  );
+}
+
+// ---------- Modal ----------
+function actualizarEtapaInfo(pedido){
+  document.getElementById("modal-badge").innerHTML = badgeHtml(pedido.estado);
+  const bloqueaEnvio = esperandoPan(pedido);
+  document.getElementById("modal-etapa-info").textContent =
+    pedido.estado === "pendiente"
+      ? (tienePan(pedido)
+          ? "Recién llega. Imprimí la hoja para ir a armar la parte de fábrica; el pan lo ve panadería aparte."
+          : "Recién llega. Imprimí la hoja para ir a armarlo.")
+      : bloqueaEnvio
+      ? "En preparación. El pan de este pedido todavía no está listo — no vas a poder confirmar el envío hasta que panadería lo termine."
+      : (tienePan(pedido)
+          ? "En preparación. El pan ya está resuelto: cotejá contra la hoja y cargá lo que efectivamente se envía."
+          : "En preparación. Cotejá contra la hoja impresa y cargá acá lo que efectivamente se envía.");
+
+  const btn = document.getElementById("btn-confirmar-envio");
+  btn.disabled = bloqueaEnvio;
+  btn.style.opacity = bloqueaEnvio ? "0.5" : "";
+  btn.style.cursor = bloqueaEnvio ? "not-allowed" : "";
+  btn.title = bloqueaEnvio ? "Esperando que panadería termine el pan" : "";
+  return { bloqueaEnvio };
+}
+
+// Refresca en vivo la tabla y el historial sin redibujar todo el modal —
+// para cuando panadería resuelve el pan mientras fábrica tiene el pedido
+// abierto, o cuando central lo actualiza por su lado.
+function actualizarFilasYHistorial(pedido){
+  actualizarEtapaInfo(pedido);
+  renderHistorial(pedido);
+}
+
+function abrirModal(pedido){
+  pedidoActivo = pedido;
+  document.getElementById("modal-numero").textContent = "#" + (pedido.numero ?? "—");
+  document.getElementById("modal-sucursal").textContent = pedido.sucursalNombre || "";
+  actualizarEtapaInfo(pedido);
+
+  const notaSucursalWrap = document.getElementById("modal-nota-sucursal-wrap");
+  if (pedido.notaSucursalPedido) {
+    notaSucursalWrap.classList.remove("hidden");
+    document.getElementById("modal-nota-sucursal-pedido").textContent = pedido.notaSucursalPedido;
+  } else {
+    notaSucursalWrap.classList.add("hidden");
+  }
+
+  const recienLlegado = pedido.estado === "pendiente";
+  const tbody = document.getElementById("modal-items");
+  tbody.innerHTML = "";
+  (pedido.items || []).forEach((it, idx) => {
+    if (it.esPan) return; // fábrica no arma ni ve el pan
+    const tr = document.createElement("tr");
+    tr.className = "border-b";
+    tr.style.borderColor = "var(--linea)";
+    tr.dataset.idx = idx;
+
+    let celdaEnviado, celdaNota;
+    if (recienLlegado) {
+      celdaEnviado = `<span style="color:var(--tinta-tenue)">—</span>`;
+      celdaNota = `<span style="color:var(--tinta-tenue)">—</span>`;
+    } else {
+      const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+      celdaEnviado = `<input type="number" min="0" step="any" data-idx="${idx}" class="input-cant input-enviada border rounded px-2 py-1" style="border-color:var(--linea)" value="${enviada}">`;
+      celdaNota = `<input type="text" data-idx="${idx}" class="input-nota-item border rounded px-2 py-1 w-full text-xs" style="border-color:var(--linea)" placeholder="ej: no había stock" value="${escapeHtml(it.notaItem || "")}">`;
+    }
+
+    tr.innerHTML = `
+      <td class="py-2">${escapeHtml(it.nombre)} <span class="text-xs" style="color:var(--tinta-suave)">(${escapeHtml(etiquetaUnidad(it.unidad))})</span></td>
+      <td class="py-2 text-right num-mono">${it.cantidadPedida}</td>
+      <td class="py-2 text-right celda-enviado">${celdaEnviado}</td>
+      <td class="py-2 celda-nota">${celdaNota}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const notaEditarWrap = document.getElementById("modal-nota-general-editar-wrap");
+  if (!recienLlegado) {
+    notaEditarWrap.classList.remove("hidden");
+    document.getElementById("modal-nota-general").value = pedido.notaCentral || "";
+  } else {
+    notaEditarWrap.classList.add("hidden");
+  }
+
+  document.getElementById("btn-imprimir").classList.toggle("hidden", !recienLlegado);
+  document.getElementById("btn-en-preparacion").classList.toggle("hidden", !recienLlegado);
+  document.getElementById("btn-confirmar-envio").classList.toggle("hidden", recienLlegado);
+
+  renderHistorial(pedido);
+  document.getElementById("modal").classList.remove("hidden");
+  document.getElementById("modal").classList.add("flex");
+}
+
+document.getElementById("modal-cerrar").addEventListener("click", () => {
+  document.getElementById("modal").classList.add("hidden");
+  document.getElementById("modal").classList.remove("flex");
+});
+
+document.getElementById("btn-en-preparacion").addEventListener("click", async (e) => {
+  if (pedidoActivo.estado !== "pendiente") {
+    await alertaBonita("Este pedido ya no está pendiente (puede que central lo haya rechazado). Cerrá y volvé a abrirlo para ver su estado actual.", { tipo: "advertencia" });
+    document.getElementById("modal").classList.add("hidden");
+    return;
+  }
+  conCarga(e.currentTarget, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+      estado: "en_preparacion",
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "en_preparacion", en: Date.now(), por: miNombre }),
+    });
+    document.getElementById("modal").classList.add("hidden");
+  }, "Guardando…");
+});
+
+document.getElementById("btn-confirmar-envio").addEventListener("click", async (e) => {
+  if (pedidoActivo.estado !== "en_preparacion") {
+    await alertaBonita("Este pedido ya no está en preparación. Cerrá y volvé a abrirlo para ver su estado actual.", { tipo: "advertencia" });
+    document.getElementById("modal").classList.add("hidden");
+    return;
+  }
+  const cantidadesInputs = document.querySelectorAll(".input-enviada");
+  const notasInputs = document.querySelectorAll(".input-nota-item");
+  const items = pedidoActivo.items.map(it => ({ ...it })); // los ítems de pan viajan intactos
+
+  let faltaNota = false;
+  cantidadesInputs.forEach(inp => {
+    const idx = Number(inp.dataset.idx);
+    items[idx].cantidadEnviada = Number(inp.value);
+  });
+  notasInputs.forEach(inp => {
+    const idx = Number(inp.dataset.idx);
+    items[idx].notaItem = inp.value.trim();
+    if (Number(items[idx].cantidadEnviada) !== Number(items[idx].cantidadPedida) && !items[idx].notaItem) {
+      faltaNota = true;
+    }
+  });
+
+  if (faltaNota) {
+    await alertaBonita("Hay productos con una cantidad distinta a la pedida. Agregá una nota explicando la diferencia antes de confirmar.", { tipo: "advertencia" });
+    return;
+  }
+
+  const notaGeneral = document.getElementById("modal-nota-general").value.trim();
+  conCarga(e.currentTarget, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+      items,
+      estado: "enviado",
+      notaCentral: notaGeneral,
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "enviado", en: Date.now(), por: miNombre, nota: notaGeneral }),
+    });
+    document.getElementById("modal").classList.add("hidden");
+    // El remito hay que abrocharlo a la hoja original ahora, con el pedido
+    // saliendo — se imprime de una, con la hora de este mismo despacho.
+    const fechaEnvio = formatearFechaAR(new Date());
+    imprimirRemito(pedidoActivo, items, notaGeneral, fechaEnvio);
+  }, "Confirmando…");
+});
+
+// ---------- Impresión ----------
+function prepararImpresion(idHoja){
+  document.querySelectorAll(".hoja-print").forEach(h => h.classList.toggle("activa", h.id === idHoja));
+}
+
+document.getElementById("btn-imprimir").addEventListener("click", () => {
+  const p = pedidoActivo;
+  const items = itemsFabrica(p);
+
+  document.getElementById("hi-numero").textContent = "#" + (p.numero ?? "—");
+  document.getElementById("hi-sucursal").textContent = p.sucursalNombre || "";
+  document.getElementById("hi-fecha").textContent = fechaLegible(p.creadoEn);
+  document.getElementById("hi-fecha-impresion").textContent = formatearFechaAR(new Date());
+
+  const notaSucursal = (p.notaSucursalPedido || "").trim();
+  document.getElementById("hi-nota-sucursal-wrap").classList.toggle("hidden", !notaSucursal);
+  document.getElementById("hi-nota-sucursal").textContent = notaSucursal;
+  document.getElementById("hi-nota-pan-wrap").classList.toggle("hidden", !tienePan(p));
+
+  document.getElementById("hi-resumen").innerHTML =
+    `<span class="hi-resumen-texto">${items.length}${items.length === 1 ? " producto" : " productos"}</span>`;
+
+  // Igual que en central.html: se agrupa por categoría (sacada del catálogo
+  // actual por productoId) solo si hay más de una, para no complicar hojas
+  // con un solo grupo.
+  const categoriaPorId = {};
+  catalogoProductos.forEach(prod => { categoriaPorId[prod.id] = (prod.categoria || "Sin categoría").trim(); });
+  const grupos = new Map();
+  items.forEach(it => {
+    const cat = categoriaPorId[it.productoId] || "Sin categoría";
+    const clave = cat.toLowerCase();
+    if (!grupos.has(clave)) grupos.set(clave, { etiqueta: cat, items: [] });
+    grupos.get(clave).items.push(it);
+  });
+  const mostrarCategorias = grupos.size > 1;
+
+  const tbody = document.getElementById("hi-items");
+  tbody.innerHTML = "";
+  [...grupos.values()]
+    .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta))
+    .forEach(({ etiqueta, items: itemsCat }) => {
+      if (mostrarCategorias) {
+        const trCat = document.createElement("tr");
+        trCat.className = "hi-categoria";
+        trCat.innerHTML = `<td colspan="3">${escapeHtml(etiqueta)}</td>`;
+        tbody.appendChild(trCat);
+      }
+      itemsCat
+        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+        .forEach(it => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${escapeHtml(it.nombre)}</td>
+            <td class="hi-col-num num-mono">${it.cantidadPedida}</td>
+            <td>${escapeHtml(etiquetaUnidad(it.unidad))}</td>`;
+          tbody.appendChild(tr);
+        });
+    });
+
+  prepararImpresion("hoja-impresion");
+  window.print();
+});
+
+// Remito de envío: lo que realmente se manda (solo lo de fábrica), comparado
+// con lo pedido. Se imprime solo al confirmar el envío.
+function imprimirRemito(p, itemsCompletos, notaGeneral, fechaEnvioTexto){
+  const items = itemsCompletos.filter(it => !it.esPan);
+
+  document.getElementById("rm-numero").textContent = "#" + (p.numero ?? "—");
+  document.getElementById("rm-sucursal").textContent = p.sucursalNombre || "";
+  document.getElementById("rm-fecha-pedido").textContent = fechaLegible(p.creadoEn);
+  document.getElementById("rm-fecha-envio").textContent = fechaEnvioTexto;
+
+  const notaSucursal = (p.notaSucursalPedido || "").trim();
+  document.getElementById("rm-nota-sucursal-wrap").classList.toggle("hidden", !notaSucursal);
+  document.getElementById("rm-nota-sucursal").textContent = notaSucursal;
+
+  const notaCentral = (notaGeneral || "").trim();
+  document.getElementById("rm-nota-central-wrap").classList.toggle("hidden", !notaCentral);
+  document.getElementById("rm-nota-central").textContent = notaCentral;
+
+  const cantDif = items.filter(it => Number(it.cantidadEnviada) !== Number(it.cantidadPedida)).length;
+  const badgeResumen = cantDif > 0
+    ? `<span class="hi-badge hi-badge-dif">${cantDif} con diferencia${cantDif === 1 ? "" : "s"}</span>`
+    : `<span class="hi-badge hi-badge-ok">✓ Sin diferencias</span>`;
+  document.getElementById("rm-resumen").innerHTML =
+    `<span class="hi-resumen-texto">${items.length}${items.length === 1 ? " producto" : " productos"}</span>${badgeResumen}`;
+
+  const tbody = document.getElementById("rm-items");
+  tbody.innerHTML = "";
+  items
+    .slice()
+    .sort((a, b) => a.nombre.localeCompare(b.nombre))
+    .forEach(it => {
+      const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+      const difiere = Number(enviada) !== Number(it.cantidadPedida);
+      const tr = document.createElement("tr");
+      if (difiere) tr.className = "hi-fila-dif";
+      tr.innerHTML = `
+        <td>${escapeHtml(it.nombre)} ${escapeHtml(etiquetaUnidad(it.unidad))}</td>
+        <td class="hi-col-num num-mono">${it.cantidadPedida}</td>
+        <td class="hi-col-num num-mono">${enviada}</td>
+        <td>${escapeHtml(it.notaItem || "")}</td>`;
+      tbody.appendChild(tr);
+    });
+
+  prepararImpresion("hoja-remito");
+  window.print();
+}
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
