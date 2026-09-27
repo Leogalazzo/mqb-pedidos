@@ -248,7 +248,6 @@
 
     <div class="modal-botones mb-5 modal-fijo">
       <button id="btn-imprimir" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Imprimir hoja de producción</button>
-      <button id="btn-en-preparacion" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Marcar en preparación</button>
       <button id="btn-confirmar-envio" class="hidden px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--verde)">Confirmar envío</button>
       <button id="btn-imprimir-remito" class="hidden px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--ambar-oscuro)">Imprimir remito</button>
       <button id="btn-rechazar" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--rojo); color:var(--rojo)">Rechazar pedido</button>
@@ -885,7 +884,7 @@ function fechaLegibleMs(ms){
 const textoEstado = {
   pendiente: "Pedido creado",
   en_preparacion: "Pasó a preparación",
-  enviado: "Despachado desde central",
+  enviado: "Despachado",
   recibido: "Confirmado por la sucursal",
   cancelado: "Cancelado por la sucursal",
   rechazado: "Rechazado por central",
@@ -1163,8 +1162,8 @@ let pedidoActivo = null;
 // quede claro qué corresponde hacer en cada etapa sin tener que adivinarlo
 // por qué botones aparecen.
 const AYUDA_ETAPA = {
-  pendiente: "Recién llega de la sucursal. Imprimí la hoja para ir a armarlo, o rechazalo si no corresponde.",
-  en_preparacion: "En preparación. Cotejá contra la hoja impresa y cargá acá lo que efectivamente se envía.",
+  pendiente: "Recién llega de la sucursal. Podés rechazarlo si no corresponde; si no, pasa solo a fábrica para que lo arme.",
+  en_preparacion: "Fábrica lo está armando. Cuando confirme el envío, vas a ver acá las cantidades y notas.",
   enviado: "Ya se despachó. Queda esperar a que la sucursal confirme que lo recibió.",
   recibido: "Pedido cerrado. Esto es lo que quedó registrado.",
   cancelado: "La sucursal canceló este pedido antes de que se empezara a preparar.",
@@ -1172,11 +1171,13 @@ const AYUDA_ETAPA = {
 };
 
 // Un pedido "solo de pan" es el que no tiene NINGÚN ítem fuera del catálogo
-// de panadería: central no tiene nada que armar ni que decidir ahí, lo hace
+// de panadería: ni central ni fábrica tienen nada que armar ahí, lo hace
 // todo la panadería. Por eso en esos pedidos central solo puede imprimir la
-// hoja; pasar a preparación y rechazar le corresponden al panadero (ver
-// panaderia.html). En los pedidos mixtos no cambia nada: central sigue
-// mandando como siempre.
+// hoja y ver cómo avanza; pasar a preparación y rechazar le corresponden al
+// panadero (ver panaderia.html). En los pedidos mixtos o normales, en
+// cambio, es fábrica quien los pasa a preparación y despacha (ver
+// fabrica.html); central los sigue viendo enteros y puede rechazarlos
+// mientras están "pendiente", pero ya no los arma ni los despacha ella misma.
 function esSoloPan(pedido){
   const items = pedido.items || [];
   return items.length > 0 && items.every(it => it.esPan);
@@ -1212,9 +1213,9 @@ function actualizarInfoPan(pedido){
     despachoDirecto
       ? "La panadería ya terminó este pedido. Revisá las cantidades y despachalo."
       : (panRechazado && pedido.estado === "en_preparacion")
-      ? "La panadería rechazó el pan de este pedido (ver motivo en el historial). Podés despachar el resto sin el pan."
+      ? "La panadería rechazó el pan de este pedido (ver motivo en el historial). Fábrica puede despachar el resto sin esperarlo."
       : esperandoPan
-      ? "En preparación. El pan de este pedido todavía no está listo — no se puede confirmar el envío hasta que la panadería lo termine."
+      ? "En preparación en fábrica. El pan de este pedido todavía no está listo — fábrica no va a poder confirmar el envío hasta que la panadería lo termine."
       : (soloPan && pedido.estado === "pendiente")
       ? "Este pedido es solo de pan. Imprimí la hoja si la necesitás; ponerlo en preparación o rechazarlo lo hace la panadería."
       : envioSoloPan
@@ -1223,8 +1224,12 @@ function actualizarInfoPan(pedido){
           : "Rechazaste el resto del pedido, pero el pan se está haciendo (eso lo decide la panadería). Cuando esté listo vas a poder enviarlo solo.")
       : (AYUDA_ETAPA[pedido.estado] || "");
 
+  // Confirmar envío desde acá queda solo para los dos casos que no pasan por
+  // fábrica: un pedido de solo pan ya terminado por panadería (despachoDirecto)
+  // y el envío del pan solo, de un pedido que central ya rechazó (envioSoloPan).
+  // El envío de un pedido normal en preparación lo confirma fábrica, no central.
   const btnConfirmarEnvio = document.getElementById("btn-confirmar-envio");
-  btnConfirmarEnvio.classList.toggle("hidden", pedido.estado !== "en_preparacion" && !despachoDirecto && !envioSoloPan);
+  btnConfirmarEnvio.classList.toggle("hidden", !despachoDirecto && !envioSoloPan);
   btnConfirmarEnvio.textContent = envioSoloPan ? "Enviar solo el pan" : "Confirmar envío";
   btnConfirmarEnvio.disabled = bloqueaEnvio;
   btnConfirmarEnvio.style.opacity = bloqueaEnvio ? "0.5" : "";
@@ -1234,22 +1239,27 @@ function actualizarInfoPan(pedido){
   return { soloPan, despachoDirecto, esperandoPan };
 }
 
-// Refresca en vivo las filas de pan (las únicas de solo lectura mientras el
-// pedido está en preparación) y el historial. Nunca toca las filas de
-// productos normales ni sus inputs: esas dependen de lo que central esté
-// completando a mano en ese momento.
+// Refresca en vivo las filas de la tabla (todas son de solo lectura en
+// central: los productos normales los completa fábrica y el pan lo
+// completa panadería) y el historial, sin redibujar todo el modal — así
+// central ve el progreso a medida que va pasando, sin tener que cerrar y
+// reabrir el pedido.
 function actualizarFilasPanYHistorial(pedido){
   renderHistorial(pedido);
 
   // Mientras el pedido está "pendiente" y no es despacho directo, la tabla
-  // entera muestra guiones (nada se decidió todavía) — no hay nada de pan
-  // que actualizar ahí.
+  // entera muestra guiones (nada se decidió todavía) — no hay nada que
+  // actualizar ahí todavía.
   const despachoDirecto = esSoloPan(pedido) && pedido.estado === "pendiente" && pedido.panEstado === "listo";
   if (pedido.estado === "pendiente" && !despachoDirecto) return;
+  // Mismo criterio que al construir la tabla: los ítems que no son de pan de
+  // un pedido ya rechazado por central (con pan todavía en curso) siguen en
+  // guiones hasta que se despache, no hay nada de ellos para refrescar.
+  const soloPanEnCurso = pedido.estado === "rechazado" && (pedido.items || []).some(x => x.esPan);
 
   const tbody = document.getElementById("modal-items");
   (pedido.items || []).forEach((it, idx) => {
-    if (!it.esPan) return;
+    if (soloPanEnCurso && !it.esPan) return;
     const fila = tbody.querySelector(`tr[data-idx="${idx}"]`);
     if (!fila) return;
     const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
@@ -1275,32 +1285,25 @@ function abrirModal(pedido){
     notaSucursalWrap.classList.add("hidden");
   }
 
-  // La tabla de ítems muestra distinta información según la etapa: recién
-  // llegado no hay nada que decidir todavía (guiones); en preparación es
-  // donde se carga lo que realmente se envía; de ahí en más queda fija,
-  // de solo lectura.
-  const enPreparacion = pedido.estado === "en_preparacion";
+  // La tabla de ítems es de solo lectura en central: quien carga las
+  // cantidades que realmente se envían es fábrica (los productos normales,
+  // en fabrica.html) o panadería (el pan, en panaderia.html). Mientras el
+  // pedido está "pendiente" (y no es despacho directo) todavía no hay nada
+  // decidido, así que se muestran guiones; de ahí en más se ve lo que haya
+  // cargado quien corresponda, en vivo.
   const tbody = document.getElementById("modal-items");
   tbody.innerHTML = "";
   (pedido.items || []).forEach((it, idx) => {
     const tr = document.createElement("tr");
     tr.className = "border-b";
     tr.style.borderColor = "var(--linea)";
-    tr.dataset.idx = idx; // permite ubicar la fila después, para refrescar en vivo la parte de pan sin redibujar toda la tabla
+    tr.dataset.idx = idx; // permite ubicar la fila después, para refrescar en vivo sin redibujar toda la tabla
 
     let celdaEnviado, celdaNota;
     if ((pedido.estado === "pendiente" && !despachoDirecto) || (pedido.estado === "rechazado" && !it.esPan && (pedido.items || []).some(x => x.esPan))) {
       celdaEnviado = `<span style="color:var(--tinta-tenue)">—</span>`;
       celdaNota = `<span style="color:var(--tinta-tenue)">—</span>`;
-    } else if (enPreparacion && !it.esPan) {
-      const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
-      celdaEnviado = `<input type="number" min="0" step="any" data-idx="${idx}" class="input-cant input-enviada border rounded px-2 py-1" style="border-color:var(--linea)" value="${enviada}">`;
-      celdaNota = `<input type="text" data-idx="${idx}" class="input-nota-item border rounded px-2 py-1 w-full text-xs" style="border-color:var(--linea)" placeholder="ej: no había stock" value="${escapeHtml(it.notaItem || "")}">`;
     } else {
-      // Los ítems de pan los completa panadería, no central: se muestran de
-      // solo lectura (con la cantidad y la nota que ya cargaron ellos) igual
-      // que un pedido ya despachado, aunque el pedido en general todavía
-      // esté "en preparación".
       const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
       const difiere = Number(enviada) !== Number(it.cantidadPedida);
       celdaEnviado = `<span class="num-mono${difiere ? " font-700" : ""}"${difiere ? ' style="color:var(--rojo)"' : ""}>${enviada}</span>`;
@@ -1315,17 +1318,19 @@ function abrirModal(pedido){
     tbody.appendChild(tr);
   });
 
-  // Nota general: editable mientras hay algo que decidir (pendiente = motivo
-  // de rechazo; en_preparacion = aclaraciones del envío). Una vez despachado,
-  // recibido, cancelado o rechazado queda fija — ya no tiene sentido seguir
-  // tocando lo que ya se mandó o se resolvió.
+  // Nota general: editable mientras central tiene algo propio que decidir
+  // (pendiente = motivo de rechazo; despacho directo de un pedido de solo
+  // pan = aclaraciones del envío). El "en preparación" de un pedido normal
+  // ya no es cosa de central —fábrica carga su propia nota al confirmar el
+  // envío— así que ahí este campo queda afuera; una vez despachado,
+  // recibido, cancelado o rechazado también queda fijo.
   const notaEditarWrap = document.getElementById("modal-nota-general-editar-wrap");
   const notaCentralLecturaWrap = document.getElementById("modal-nota-central-lectura-wrap");
   const notaRecepcionWrap = document.getElementById("modal-nota-recepcion-wrap");
 
   // En "pendiente" la nota es el motivo de rechazo; si el pedido es solo de
   // pan, central no rechaza, así que tampoco hace falta el campo.
-  if (enPreparacion || despachoDirecto || (pedido.estado === "pendiente" && !soloPan)) {
+  if (despachoDirecto || (pedido.estado === "pendiente" && !soloPan)) {
     notaEditarWrap.classList.remove("hidden");
     notaCentralLecturaWrap.classList.add("hidden");
     notaRecepcionWrap.classList.add("hidden");
@@ -1350,12 +1355,13 @@ function abrirModal(pedido){
   }
 
   // Botones: uno por etapa, nada de mostrar acciones que ya no corresponden.
+  // Central ya no arma ni despacha pedidos normales (eso lo hace fábrica, en
+  // fabrica.html): acá solo queda imprimir la hoja para su propio registro y
+  // decidir si rechaza el pedido mientras todavía está "pendiente". Un
+  // pedido de solo pan tampoco se rechaza desde acá (esa decisión es de la
+  // panadería), así que "Rechazar" se oculta en ese caso.
   const recienLlegado = pedido.estado === "pendiente";
   document.getElementById("btn-imprimir").classList.toggle("hidden", !recienLlegado);
-  // Pedido de solo pan: central queda como espectadora hasta que la panadería
-  // resuelva. Las dos acciones que implican decidir sobre el pedido
-  // (prepararlo o rechazarlo) se ocultan.
-  document.getElementById("btn-en-preparacion").classList.toggle("hidden", !recienLlegado || soloPan);
   document.getElementById("btn-rechazar").classList.toggle("hidden", !recienLlegado || soloPan);
   // btn-confirmar-envio (visibilidad + deshabilitado) ya lo maneja actualizarInfoPan.
   // El remito solo tiene sentido una vez despachado (hay cantidades enviadas
@@ -1372,20 +1378,14 @@ document.getElementById("modal-cerrar").addEventListener("click", () => {
   document.getElementById("modal").classList.remove("flex");
 });
 
-document.getElementById("btn-en-preparacion").addEventListener("click", (e) => {
-  conCarga(e.currentTarget, async () => {
-    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
-      estado: "en_preparacion",
-      actualizadoEn: serverTimestamp(),
-      historial: arrayUnion({ estado: "en_preparacion", en: Date.now(), por: miNombre }),
-    });
-    document.getElementById("modal").classList.add("hidden");
-  }, "Guardando…");
-});
-
+// Este botón le queda a central solo para dos casos que no pasan por
+// fábrica (ver actualizarInfoPan): el despacho directo de un pedido de solo
+// pan ya terminado por panadería, y el envío del pan solo de un pedido que
+// central ya rechazó. En ningún caso hay inputs que leer de la tabla: lo
+// que se envía es lo que ya dejaron cargado panadería (el pan) o, para lo
+// que no es pan en un envío-solo-pan, un 0 automático con el motivo del
+// rechazo.
 document.getElementById("btn-confirmar-envio").addEventListener("click", async (e) => {
-  const cantidadesInputs = document.querySelectorAll(".input-enviada");
-  const notasInputs = document.querySelectorAll(".input-nota-item");
   const items = pedidoActivo.items.map((it, idx) => ({ ...it }));
   const soloElPan = panSigueEnCurso(pedidoActivo);
   if (soloElPan) {
@@ -1401,29 +1401,11 @@ document.getElementById("btn-confirmar-envio").addEventListener("click", async (
     });
   }
 
-  // En el despacho directo de un pedido de solo pan no hay inputs en la
-  // tabla: lo que se envía es lo que dejó cargado la panadería.
+  // En el despacho directo de un pedido de solo pan, lo que se envía es lo
+  // que dejó cargado la panadería.
   items.forEach(it => {
     if (it.cantidadEnviada == null) it.cantidadEnviada = it.cantidadPedida;
   });
-
-  let faltaNota = false;
-  cantidadesInputs.forEach(inp => {
-    const idx = Number(inp.dataset.idx);
-    items[idx].cantidadEnviada = Number(inp.value);
-  });
-  notasInputs.forEach(inp => {
-    const idx = Number(inp.dataset.idx);
-    items[idx].notaItem = inp.value.trim();
-    if (Number(items[idx].cantidadEnviada) !== Number(items[idx].cantidadPedida) && !items[idx].notaItem) {
-      faltaNota = true;
-    }
-  });
-
-  if (faltaNota) {
-    await alertaBonita("Hay productos con una cantidad distinta a la pedida. Agregá una nota explicando la diferencia antes de confirmar.", { tipo: "advertencia" });
-    return;
-  }
 
   // Si se envía solo el pan, la nota general sigue siendo el motivo del
   // rechazo (el textarea está oculto en este estado y puede tener texto de
