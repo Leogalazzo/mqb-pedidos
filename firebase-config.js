@@ -67,16 +67,16 @@ export {
 
 // ============================================================
 // Rol por correo: NO hace falta ninguna colección "usuarios" para
-// decidir quién es central. Central puede tener más de una cuenta con
-// acceso administrativo (por ejemplo: el dueño y el local principal),
-// así que acá se define un mapa correo -> nombre para mostrar. Cada
-// cuenta que esté en este mapa entra como "central"; cualquier otro
-// correo que pueda iniciar sesión (los que crees en Authentication)
-// se trata automáticamente como sucursal.
+// decidir quién es central. Acá se define un mapa correo -> nombre para
+// mostrar; central podría tener más de una cuenta si hiciera falta (por
+// eso sigue siendo un mapa y no un solo valor), pero por ahora es nada
+// más la del dueño. Villa Ángela y Sáenz Peña son sucursales como
+// cualquier otra: no van acá. Cualquier correo que pueda iniciar sesión
+// (los que crees en Authentication) y no esté en este mapa ni en los de
+// panadería/fábrica de más abajo, se trata automáticamente como sucursal.
 // ============================================================
 export const CUENTAS_CENTRAL = {
   "admin@mqb.interno": "Casa central",
-  "villaangela@mqb.interno": "Villa Ángela (central)",
 };
 
 // ============================================================
@@ -89,6 +89,20 @@ export const CUENTAS_CENTRAL = {
 // ============================================================
 export const CUENTAS_PANADERO = {
   "panaderia@mqb.interno": "Panadería",
+};
+
+// ============================================================
+// Cuenta(s) de fábrica: mismo patrón que CUENTAS_CENTRAL y
+// CUENTAS_PANADERO. Fábrica es donde se arma físicamente el pedido (todo
+// lo que no es pan) para ambas sucursales: recibe los pedidos que llegan a
+// central, los imprime, los pone "en preparación" y carga las cantidades
+// que efectivamente se despachan. Central sigue viendo y pudiendo
+// rechazar cada pedido (todo lo que pasa en fábrica queda igual guardado
+// en el mismo documento de Firestore, así que aparece en central.html sin
+// necesidad de nada extra), pero ya no arma ni despacha ella misma.
+// ============================================================
+export const CUENTAS_FABRICA = {
+  "fabrica@mqb.interno": "Fábrica",
 };
 
 // ============================================================
@@ -109,6 +123,7 @@ export function obtenerRolPorCorreo(email) {
   const correo = email.toLowerCase();
   if (CUENTAS_CENTRAL[correo]) return "central";
   if (CUENTAS_PANADERO[correo]) return "panadero";
+  if (CUENTAS_FABRICA[correo]) return "fabrica";
   return "sucursal";
 }
 
@@ -132,6 +147,9 @@ export async function obtenerPerfil(user) {
   }
   if (rol === "panadero") {
     return { rol, nombre: CUENTAS_PANADERO[(user.email || "").toLowerCase()] || "Panadería" };
+  }
+  if (rol === "fabrica") {
+    return { rol, nombre: CUENTAS_FABRICA[(user.email || "").toLowerCase()] || "Fábrica" };
   }
 
   const ref = doc(db, "sucursales", user.uid);
