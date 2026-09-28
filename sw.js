@@ -9,9 +9,15 @@
 // datos va directo a la red. Si en algún momento se suman archivos
 // nuevos al sitio, conviene subir CACHE_VERSION para que los
 // dispositivos que ya instalaron la app bajen la versión nueva.
+//
+// Al subir CACHE_VERSION, la versión nueva NO se activa sola: queda
+// esperando y la app muestra el aviso "Hay una actualización" (ver
+// iniciarAvisoActualizacion en ui.js). Al tocar "Actualizar", la página
+// le manda el mensaje SKIP_WAITING a este worker, que recién ahí se activa,
+// y la página se recarga con todo lo nuevo.
 // ============================================================
 
-const CACHE_VERSION = "v2.0.10";
+const CACHE_VERSION = "v0.0.0";
 const CACHE_NAME = `mqb-shell-${CACHE_VERSION}`;
 
 const ARCHIVOS_CASCARA = [
@@ -19,6 +25,8 @@ const ARCHIVOS_CASCARA = [
   "/index.html",
   "/central.html",
   "/sucursal.html",
+  "/panaderia.html",
+  "/fabrica.html",
   "/estilos.css",
   "/ui.js",
   "/avisos.js",
@@ -39,8 +47,16 @@ self.addEventListener("install", (event) => {
           cache.add(archivo).catch(() => {})
         )
       )
-    ).then(() => self.skipWaiting())
+    )
+    // Sin skipWaiting() acá: la versión nueva espera hasta que la persona
+    // toque "Actualizar" (mensaje SKIP_WAITING, más abajo).
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", (event) => {
