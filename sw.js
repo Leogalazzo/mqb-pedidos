@@ -17,7 +17,7 @@
 // y la página se recarga con todo lo nuevo.
 // ============================================================
 
-const CACHE_VERSION = "v0.0.0";
+const CACHE_VERSION = "v1.0.0";
 const CACHE_NAME = `mqb-shell-${CACHE_VERSION}`;
 
 const ARCHIVOS_CASCARA = [
