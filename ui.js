@@ -1,6 +1,8 @@
 // Helpers de interfaz compartidos: loaders en botones (con bloqueo de doble clic)
 // y placeholders de "cargando" para listas que todavía no recibieron datos.
 
+import { alertaBonita } from "./avisos.js";
+
 // Envuelve una acción async en un botón: lo deshabilita, le pone un spinner + texto,
 // y lo devuelve a su estado original al terminar (ya sea que salga bien o falle).
 // Si el botón ya está en curso, un segundo click se ignora — esto es lo que evita
@@ -28,7 +30,12 @@ export function conCarga(boton, tarea, textoCargando = "Guardando…", alertaGen
     .catch((err) => {
       restaurar();
       console.error(err);
-      if (alertaGenerica) alert("Algo falló al guardar. Revisá tu conexión e intentá de nuevo.");
+      if (alertaGenerica) {
+        alertaBonita("Algo falló al guardar. Revisá tu conexión e intentá de nuevo.", {
+          titulo: "No se pudo guardar",
+          tipo: "error",
+        });
+      }
       throw err;
     });
 }
