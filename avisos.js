@@ -32,6 +32,7 @@ const ICONOS = {
 
 let overlayEl = null;
 let cerrarActual = null; // función para cerrar el modal abierto en este momento, si hay uno
+let cierreExternoPermitido = true; // false = solo se cierra con sus botones (ni tocando afuera ni con Escape)
 
 function asegurarDom() {
   if (overlayEl) return overlayEl;
@@ -50,10 +51,10 @@ function asegurarDom() {
   document.body.appendChild(overlayEl);
 
   overlayEl.addEventListener("mousedown", (e) => {
-    if (e.target === overlayEl && cerrarActual) cerrarActual(false);
+    if (e.target === overlayEl && cerrarActual && cierreExternoPermitido) cerrarActual(false);
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && cerrarActual) cerrarActual(false);
+    if (e.key === "Escape" && cerrarActual && cierreExternoPermitido) cerrarActual(false);
   });
 
   return overlayEl;
@@ -67,8 +68,9 @@ const TITULOS_POR_DEFECTO = {
   error: "Ocurrió un error",
 };
 
-function abrir({ tipo, titulo, mensaje, botones }) {
+function abrir({ tipo, titulo, mensaje, botones, cerrable = true }) {
   const overlay = asegurarDom();
+  cierreExternoPermitido = cerrable;
   const modal = overlay.querySelector(".aviso-modal");
   overlay.querySelector("#aviso-icono").innerHTML =
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONOS[tipo] || ICONOS.info}</svg>`;
@@ -93,6 +95,7 @@ function abrir({ tipo, titulo, mensaje, botones }) {
       if (resuelto) return;
       resuelto = true;
       cerrarActual = null;
+      cierreExternoPermitido = true;
       overlay.classList.add("hidden");
       overlay.classList.remove("flex");
       document.body.classList.remove("aviso-abierto");
@@ -117,14 +120,17 @@ function abrir({ tipo, titulo, mensaje, botones }) {
  * Reemplazo de window.alert(). Muestra un mensaje con un solo botón y
  * resuelve la promesa cuando se cierra.
  * @param {string} mensaje
- * @param {{titulo?: string, tipo?: 'info'|'exito'|'advertencia'|'error'}} opciones
+ * @param {{titulo?: string, tipo?: 'info'|'exito'|'advertencia'|'error', textoBoton?: string, cerrable?: boolean}} opciones
+ *   cerrable: false → el aviso solo se cierra con su botón (no al tocar
+ *   afuera ni con Escape). Por defecto es true.
  */
 export function alertaBonita(mensaje, opciones = {}) {
-  const { titulo, tipo = "info", textoBoton = "Entendido" } = opciones;
+  const { titulo, tipo = "info", textoBoton = "Entendido", cerrable = true } = opciones;
   return abrir({
     tipo,
     titulo,
     mensaje,
+    cerrable,
     botones: [{ texto: textoBoton, valor: true, clase: "aviso-btn-principal" }],
   }).then(() => undefined);
 }
