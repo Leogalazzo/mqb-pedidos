@@ -20,6 +20,12 @@
 
 <div id="cargando-pagina"><span class="spinner spinner-oscuro"></span>Cargando…</div>
 
+<!-- Loader a pantalla completa mientras se confirma el envío y se prepara el remito para imprimir -->
+<div id="cargando-remito" class="no-imprimir hidden fixed inset-0 items-center justify-center flex-col gap-3" style="background:rgba(16,19,26,.88); z-index:60; color:var(--tinta)">
+  <span class="spinner" style="width:28px; height:28px"></span>
+  <div class="text-sm font-600">Confirmando envío y preparando el remito…</div>
+</div>
+
 <!-- Botón hamburguesa: solo visible en mobile, fijo arriba a la izquierda -->
 <button id="btn-menu" class="menu-hamburguesa md:hidden no-imprimir" aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
@@ -60,8 +66,7 @@
   <main class="flex-1 px-4 pt-20 pb-6 md:px-8 md:pt-6 no-imprimir">
     <h1 class="font-display text-2xl font-700 mb-5">Pedidos para producción</h1>
     <p class="text-sm mb-5" style="color:var(--tinta-suave)">
-      Acá llegan los pedidos de las dos sucursales. El pan no aparece: eso lo
-      maneja panadería aparte.
+      Pedidos de las sucursales.
     </p>
 
     <div class="filtros-panel">
@@ -71,6 +76,8 @@
           <button data-estado="" class="filtro-btn chip-btn">Todos</button>
           <button data-estado="pendiente" class="filtro-btn chip-btn">Pendientes</button>
           <button data-estado="en_preparacion" class="filtro-btn chip-btn">En preparación</button>
+          <button data-estado="pan" class="filtro-btn chip-btn">Pan <span id="contador-pan"></span></button>
+          <button data-estado="enviado" class="filtro-btn chip-btn">Enviados</button>
         </div>
       </div>
     </div>
@@ -112,6 +119,12 @@
         <span class="font-600">Nota de la sucursal al pedir:</span> <span id="modal-nota-sucursal-pedido"></span>
       </div>
 
+      <!-- Solo lectura: pedidos ya enviados o recibidos -->
+      <div id="modal-notas-envio-wrap" class="mb-4 text-sm space-y-1 hidden">
+        <div id="modal-nota-envio-fila" class="hidden"><span class="font-600">Nota del envío:</span> <span id="modal-nota-envio"></span></div>
+        <div id="modal-nota-recepcion-fila" class="hidden"><span class="font-600">Nota de la sucursal al recibir:</span> <span id="modal-nota-recepcion"></span></div>
+      </div>
+
       <!-- Editable solo mientras el pedido está en preparación: aclaraciones
            sobre lo que efectivamente se termina enviando. -->
       <div id="modal-nota-general-editar-wrap" class="mb-4 hidden">
@@ -123,6 +136,7 @@
     <div class="modal-botones mb-5 modal-fijo">
       <button id="btn-imprimir" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Imprimir hoja de producción</button>
       <button id="btn-en-preparacion" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Marcar en preparación</button>
+      <button id="btn-reimprimir-remito" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Reimprimir remito</button>
       <button id="btn-confirmar-envio" class="hidden px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--verde)">Confirmar envío</button>
     </div>
 
@@ -246,7 +260,7 @@
 <script type="module">
 import {
   auth, db, onAuthStateChanged, signOut, obtenerPerfil,
-  collection, query, where, orderBy, onSnapshot, updateDoc, doc, serverTimestamp, arrayUnion
+  collection, query, where, orderBy, limit, onSnapshot, updateDoc, doc, serverTimestamp, arrayUnion
 } from "./firebase-config.js";
 import { conCarga, ocultarCargaPagina } from "./ui.js";
 import { alertaBonita } from "./avisos.js";
@@ -299,6 +313,8 @@ function badgeHtml(estado){
   const mapa = {
     pendiente: ["badge-pendiente", "Pendiente"],
     en_preparacion: ["badge-preparacion", "En preparación"],
+    enviado: ["badge-enviado", "Enviado"],
+    recibido: ["badge-recibido", "Recibido"],
   };
   const [clase, texto] = mapa[estado] || ["badge-pendiente", estado];
   return `<span class="badge ${clase}">${texto}</span>`;
@@ -322,6 +338,7 @@ const textoEstado = {
   pendiente: "Pedido creado",
   en_preparacion: "Pasó a preparación",
   enviado: "Despachado",
+  recibido: "Confirmado por la sucursal",
   rechazado: "Rechazado por central",
   pan_en_proceso: "Panadería puso el pan en proceso",
   pan_listo: "Panadería marcó el pan como listo",
@@ -350,6 +367,26 @@ function itemsFabrica(pedido){
 function tienePan(pedido){
   return (pedido.items || []).some(it => it.esPan);
 }
+// Pedido que es solo pan (sin nada de fábrica): fábrica no lo arma, pero sí
+// tiene que despacharlo cuando panadería lo termina.
+function soloPan(pedido){
+  const items = pedido.items || [];
+  return items.length > 0 && items.every(it => it.esPan);
+}
+// Lo que fábrica ve de un pedido: sus productos, o el pan si el pedido es solo pan.
+function itemsVisibles(pedido){
+  return soloPan(pedido) ? (pedido.items || []) : itemsFabrica(pedido);
+}
+// Solo pan y panadería ya lo marcó como listo: listo para despachar.
+function panListoParaEnviar(pedido){
+  return soloPan(pedido) && pedido.panEstado === "listo";
+}
+function badgeParaPedido(pedido){
+  if (ESTADOS_ACTIVOS.includes(pedido.estado) && soloPan(pedido)) {
+    return `<span class="badge badge-recibido">Pan listo</span>`;
+  }
+  return badgeHtml(pedido.estado);
+}
 // Pan de este pedido todavía sin resolver (ni listo ni rechazado): mientras
 // eso pase, fábrica puede seguir armando lo suyo pero no puede confirmar el
 // envío, porque despacharía el pedido sin saber qué pasa con el pan.
@@ -359,7 +396,11 @@ function esperandoPan(pedido){
 
 // ---------- Listado ----------
 let pedidosFabrica = [];
+let pedidosPan = [];      // pedidos de solo pan con el pan ya listo, a despachar
+let pedidosEnviados = []; // enviados + recibidos (solo lectura)
 let filtroFabrica = "";
+const ESTADOS_ACTIVOS = ["pendiente", "en_preparacion"];
+const ESTADOS_ENVIADOS = ["enviado", "recibido"];
 let pedidoActivo = null;
 
 const VACIO_HTML = `
@@ -384,15 +425,23 @@ function mostrarCargandoPedidos(){
 function renderPedidos(){
   const cont = document.getElementById("lista-pedidos");
   cont.innerHTML = "";
-  const estados = filtroFabrica === "" ? ["pendiente", "en_preparacion"] : [filtroFabrica];
-  const filtrados = pedidosFabrica.filter(p => estados.includes(p.estado));
+  let filtrados;
+  document.getElementById("contador-pan").textContent = pedidosPan.length ? `(${pedidosPan.length})` : "";
+  if (filtroFabrica === "enviado") {
+    filtrados = pedidosEnviados;
+  } else if (filtroFabrica === "pan") {
+    filtrados = pedidosPan;
+  } else {
+    const estados = filtroFabrica === "" ? ESTADOS_ACTIVOS : [filtroFabrica];
+    filtrados = pedidosFabrica.filter(p => estados.includes(p.estado));
+  }
 
   const vacioEl = document.getElementById("pedidos-vacio");
   vacioEl.innerHTML = VACIO_HTML;
   vacioEl.classList.toggle("hidden", filtrados.length > 0);
 
   filtrados.forEach(p => {
-    const items = itemsFabrica(p);
+    const items = itemsVisibles(p);
     const row = document.createElement("div");
     row.className = `ticket px-4 py-3 flex items-center justify-between gap-2 cursor-pointer ${p.estado}`;
     row.innerHTML = `
@@ -400,10 +449,10 @@ function renderPedidos(){
         <div class="num-mono text-lg font-700 shrink-0">#${p.numero ?? "—"}</div>
         <div class="min-w-0">
           <div class="font-600 truncate">${escapeHtml(p.sucursalNombre || "Sucursal")}</div>
-          <div class="text-xs truncate" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${items.length} ${items.length === 1 ? "producto" : "productos"}${tienePan(p) ? " · además incluye pan (aparte)" : ""}</div>
+          <div class="text-xs truncate" style="color:var(--tinta-suave)">${fechaLegible(p.creadoEn)} · ${items.length} ${items.length === 1 ? "producto" : "productos"}${soloPan(p) ? " · solo pan" : tienePan(p) ? " · además incluye pan (aparte)" : ""}</div>
         </div>
       </div>
-      <div class="shrink-0">${badgeHtml(p.estado)}</div>`;
+      <div class="shrink-0">${badgeParaPedido(p)}</div>`;
     row.addEventListener("click", () => abrirModal(p));
     cont.appendChild(row);
   });
@@ -436,12 +485,15 @@ function iniciarListeners(){
   onSnapshot(
     query(collection(db, "pedidos"), where("estado", "in", ["pendiente", "en_preparacion"]), orderBy("creadoEn", "desc")),
     (snap) => {
-      pedidosFabrica = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(p => itemsFabrica(p).length > 0);
+      const todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      pedidosFabrica = todos.filter(p => itemsFabrica(p).length > 0);
+      // Los de solo pan no se arman en fábrica, pero sí se despachan desde
+      // acá: aparecen recién cuando panadería marca el pan como listo.
+      pedidosPan = todos.filter(panListoParaEnviar);
       renderPedidos();
-      if (pedidoActivo) {
-        const actualizado = pedidosFabrica.find(p => p.id === pedidoActivo.id);
+      // Si el modal tiene un pedido ya enviado/recibido, lo maneja el otro listener.
+      if (pedidoActivo && ESTADOS_ACTIVOS.includes(pedidoActivo.estado)) {
+        const actualizado = [...pedidosFabrica, ...pedidosPan].find(p => p.id === pedidoActivo.id);
         if (actualizado) {
           pedidoActivo = actualizado;
           actualizarFilasYHistorial(actualizado);
@@ -457,14 +509,39 @@ function iniciarListeners(){
     },
     (err) => console.error("Error leyendo pedidos:", err)
   );
+  // Enviados y recibidos: mismo índice (estado + creadoEn) que la consulta de
+  // arriba. Se limita a los últimos 50 para no traer todo el historial.
+  onSnapshot(
+    query(collection(db, "pedidos"), where("estado", "in", ESTADOS_ENVIADOS), orderBy("creadoEn", "desc"), limit(50)),
+    (snap) => {
+      pedidosEnviados = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(p => itemsVisibles(p).length > 0);
+      renderPedidos();
+      if (pedidoActivo && ESTADOS_ENVIADOS.includes(pedidoActivo.estado)) {
+        const actualizado = pedidosEnviados.find(p => p.id === pedidoActivo.id);
+        if (actualizado) {
+          pedidoActivo = actualizado;
+          actualizarFilasYHistorial(actualizado);
+        }
+      }
+    },
+    (err) => console.error("Error leyendo pedidos enviados:", err)
+  );
 }
 
 // ---------- Modal ----------
 function actualizarEtapaInfo(pedido){
-  document.getElementById("modal-badge").innerHTML = badgeHtml(pedido.estado);
+  document.getElementById("modal-badge").innerHTML = badgeParaPedido(pedido);
   const bloqueaEnvio = esperandoPan(pedido);
   document.getElementById("modal-etapa-info").textContent =
-    pedido.estado === "pendiente"
+    pedido.estado === "enviado"
+      ? "Ya despachaste este pedido. Falta que la sucursal confirme que lo recibió."
+      : pedido.estado === "recibido"
+      ? "La sucursal confirmó que recibió este pedido."
+      : ESTADOS_ACTIVOS.includes(pedido.estado) && soloPan(pedido)
+      ? "Pedido de solo pan: panadería ya lo terminó. Confirmá el envío para despacharlo (se imprime el remito)."
+      : pedido.estado === "pendiente"
       ? (tienePan(pedido)
           ? "Recién llega. Imprimí la hoja para ir a armar la parte de fábrica; el pan lo ve panadería aparte."
           : "Recién llega. Imprimí la hoja para ir a armarlo.")
@@ -504,11 +581,13 @@ function abrirModal(pedido){
     notaSucursalWrap.classList.add("hidden");
   }
 
-  const recienLlegado = pedido.estado === "pendiente";
+  const panSolo = soloPan(pedido);
+  const recienLlegado = pedido.estado === "pendiente" && !panSolo;
+  const soloLectura = ESTADOS_ENVIADOS.includes(pedido.estado);
   const tbody = document.getElementById("modal-items");
   tbody.innerHTML = "";
   (pedido.items || []).forEach((it, idx) => {
-    if (it.esPan) return; // fábrica no arma ni ve el pan
+    if (it.esPan && !panSolo) return; // fábrica no arma ni ve el pan (salvo en pedidos de solo pan)
     const tr = document.createElement("tr");
     tr.className = "border-b";
     tr.style.borderColor = "var(--linea)";
@@ -518,6 +597,11 @@ function abrirModal(pedido){
     if (recienLlegado) {
       celdaEnviado = `<span style="color:var(--tinta-tenue)">—</span>`;
       celdaNota = `<span style="color:var(--tinta-tenue)">—</span>`;
+    } else if (soloLectura || panSolo) {
+      const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+      const difiere = Number(enviada) !== Number(it.cantidadPedida);
+      celdaEnviado = `<span class="num-mono ${difiere ? "font-700" : ""}" style="${difiere ? "color:var(--rojo)" : ""}">${enviada}</span>`;
+      celdaNota = `<span class="text-xs">${escapeHtml(it.notaItem || "")}</span>`;
     } else {
       const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
       celdaEnviado = `<input type="number" min="0" step="any" data-idx="${idx}" class="input-cant input-enviada border rounded px-2 py-1" style="border-color:var(--linea)" value="${enviada}">`;
@@ -533,7 +617,7 @@ function abrirModal(pedido){
   });
 
   const notaEditarWrap = document.getElementById("modal-nota-general-editar-wrap");
-  if (!recienLlegado) {
+  if (!recienLlegado && !soloLectura) {
     notaEditarWrap.classList.remove("hidden");
     document.getElementById("modal-nota-general").value = pedido.notaCentral || "";
   } else {
@@ -542,7 +626,16 @@ function abrirModal(pedido){
 
   document.getElementById("btn-imprimir").classList.toggle("hidden", !recienLlegado);
   document.getElementById("btn-en-preparacion").classList.toggle("hidden", !recienLlegado);
-  document.getElementById("btn-confirmar-envio").classList.toggle("hidden", recienLlegado);
+  document.getElementById("btn-confirmar-envio").classList.toggle("hidden", recienLlegado || soloLectura);
+  document.getElementById("btn-reimprimir-remito").classList.toggle("hidden", !soloLectura);
+
+  const notaEnvio = (pedido.notaCentral || "").trim();
+  const notaRecepcion = (pedido.notaSucursal || "").trim();
+  document.getElementById("modal-nota-envio").textContent = notaEnvio;
+  document.getElementById("modal-nota-recepcion").textContent = notaRecepcion;
+  document.getElementById("modal-nota-envio-fila").classList.toggle("hidden", !notaEnvio);
+  document.getElementById("modal-nota-recepcion-fila").classList.toggle("hidden", !notaRecepcion);
+  document.getElementById("modal-notas-envio-wrap").classList.toggle("hidden", !soloLectura || (!notaEnvio && !notaRecepcion));
 
   renderHistorial(pedido);
   document.getElementById("modal").classList.remove("hidden");
@@ -571,14 +664,28 @@ document.getElementById("btn-en-preparacion").addEventListener("click", async (e
 });
 
 document.getElementById("btn-confirmar-envio").addEventListener("click", async (e) => {
-  if (pedidoActivo.estado !== "en_preparacion") {
-    await alertaBonita("Este pedido ya no está en preparación. Cerrá y volvé a abrirlo para ver su estado actual.", { tipo: "advertencia" });
+  const esPanSolo = soloPan(pedidoActivo);
+  const puedeEnviar = esPanSolo
+    ? ESTADOS_ACTIVOS.includes(pedidoActivo.estado) && pedidoActivo.panEstado === "listo"
+    : pedidoActivo.estado === "en_preparacion";
+  if (!puedeEnviar) {
+    await alertaBonita(
+      esPanSolo
+        ? "Este pedido ya no está listo para enviar (puede que panadería o central lo hayan cambiado). Cerrá y volvé a abrirlo para ver su estado actual."
+        : "Este pedido ya no está en preparación. Cerrá y volvé a abrirlo para ver su estado actual.",
+      { tipo: "advertencia" }
+    );
     document.getElementById("modal").classList.add("hidden");
     return;
   }
   const cantidadesInputs = document.querySelectorAll(".input-enviada");
   const notasInputs = document.querySelectorAll(".input-nota-item");
   const items = pedidoActivo.items.map(it => ({ ...it })); // los ítems de pan viajan intactos
+
+  // En pedidos de solo pan no hay cantidades para cargar: se envía lo pedido.
+  if (esPanSolo) {
+    items.forEach(it => { if (it.cantidadEnviada == null) it.cantidadEnviada = it.cantidadPedida; });
+  }
 
   let faltaNota = false;
   cantidadesInputs.forEach(inp => {
@@ -599,23 +706,43 @@ document.getElementById("btn-confirmar-envio").addEventListener("click", async (
   }
 
   const notaGeneral = document.getElementById("modal-nota-general").value.trim();
+  // Copia local del pedido: apenas updateDoc escribe, el onSnapshot dispara
+  // al instante (el pedido ya no está "en preparación") y pone pedidoActivo
+  // en null, así que después del await ya no se puede usar esa variable.
+  const pedidoEnviado = pedidoActivo;
   conCarga(e.currentTarget, async () => {
-    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
-      items,
-      estado: "enviado",
-      notaCentral: notaGeneral,
-      actualizadoEn: serverTimestamp(),
-      historial: arrayUnion({ estado: "enviado", en: Date.now(), por: miNombre, nota: notaGeneral }),
-    });
-    document.getElementById("modal").classList.add("hidden");
-    // El remito hay que abrocharlo a la hoja original ahora, con el pedido
-    // saliendo — se imprime de una, con la hora de este mismo despacho.
-    const fechaEnvio = formatearFechaAR(new Date());
-    imprimirRemito(pedidoActivo, items, notaGeneral, fechaEnvio);
+    mostrarLoaderRemito(true);
+    try {
+      await updateDoc(doc(db, "pedidos", pedidoEnviado.id), {
+        items,
+        estado: "enviado",
+        notaCentral: notaGeneral,
+        actualizadoEn: serverTimestamp(),
+        historial: arrayUnion({ estado: "enviado", en: Date.now(), por: miNombre, nota: notaGeneral }),
+      });
+      document.getElementById("modal").classList.add("hidden");
+      // El remito hay que abrocharlo a la hoja original ahora, con el pedido
+      // saliendo — se imprime de una, con la hora de este mismo despacho.
+      const fechaEnvio = formatearFechaAR(new Date());
+      // Dos frames para que el navegador llegue a pintar el loader antes de
+      // que window.print() (que bloquea la página) tome el control.
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      imprimirRemito(pedidoEnviado, items, notaGeneral, fechaEnvio);
+    } finally {
+      // Se oculta recién cuando el diálogo de impresión ya se cerró (o si
+      // algo falló antes), para que no quede tapando la pantalla.
+      mostrarLoaderRemito(false);
+    }
   }, "Confirmando…");
 });
 
 // ---------- Impresión ----------
+function mostrarLoaderRemito(visible){
+  const el = document.getElementById("cargando-remito");
+  el.classList.toggle("hidden", !visible);
+  el.classList.toggle("flex", visible);
+}
+
 function prepararImpresion(idHoja){
   document.querySelectorAll(".hoja-print").forEach(h => h.classList.toggle("activa", h.id === idHoja));
 }
@@ -678,10 +805,30 @@ document.getElementById("btn-imprimir").addEventListener("click", () => {
   window.print();
 });
 
-// Remito de envío: lo que realmente se manda (solo lo de fábrica), comparado
+document.getElementById("btn-reimprimir-remito").addEventListener("click", () => {
+  const p = pedidoActivo;
+  if (!p) return;
+  const evEnvio = [...(p.historial || [])].reverse().find(h => h.estado === "enviado");
+  const fechaEnvio = evEnvio ? formatearFechaAR(new Date(evEnvio.en)) : "";
+  imprimirRemito(p, p.items || [], p.notaCentral || "", fechaEnvio);
+});
+
+// Remito de envío: lo que realmente se manda (fábrica + pan), comparado
 // con lo pedido. Se imprime solo al confirmar el envío.
 function imprimirRemito(p, itemsCompletos, notaGeneral, fechaEnvioTexto){
-  const items = itemsCompletos.filter(it => !it.esPan);
+  // El remito es la hoja que viaja con el pedido, así que lleva TODO lo que
+  // se manda: lo de fábrica y el pan (que ya resolvió panadería). Si panadería
+  // rechazó el pan, figura igual pero con cantidad enviada 0 y aclarado.
+  const panRechazado = p.panEstado === "rechazado";
+  const items = itemsCompletos.map(it => {
+    let enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+    let notaItem = it.notaItem || "";
+    if (it.esPan && panRechazado) {
+      enviada = 0;
+      notaItem = notaItem || "Pan rechazado por panadería";
+    }
+    return { ...it, enviada, notaItem };
+  });
 
   document.getElementById("rm-numero").textContent = "#" + (p.numero ?? "—");
   document.getElementById("rm-sucursal").textContent = p.sucursalNombre || "";
@@ -696,7 +843,7 @@ function imprimirRemito(p, itemsCompletos, notaGeneral, fechaEnvioTexto){
   document.getElementById("rm-nota-central-wrap").classList.toggle("hidden", !notaCentral);
   document.getElementById("rm-nota-central").textContent = notaCentral;
 
-  const cantDif = items.filter(it => Number(it.cantidadEnviada) !== Number(it.cantidadPedida)).length;
+  const cantDif = items.filter(it => Number(it.enviada) !== Number(it.cantidadPedida)).length;
   const badgeResumen = cantDif > 0
     ? `<span class="hi-badge hi-badge-dif">${cantDif} con diferencia${cantDif === 1 ? "" : "s"}</span>`
     : `<span class="hi-badge hi-badge-ok">✓ Sin diferencias</span>`;
@@ -709,15 +856,15 @@ function imprimirRemito(p, itemsCompletos, notaGeneral, fechaEnvioTexto){
     .slice()
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
     .forEach(it => {
-      const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
+      const enviada = it.enviada;
       const difiere = Number(enviada) !== Number(it.cantidadPedida);
       const tr = document.createElement("tr");
       if (difiere) tr.className = "hi-fila-dif";
       tr.innerHTML = `
-        <td>${escapeHtml(it.nombre)} ${escapeHtml(etiquetaUnidad(it.unidad))}</td>
+        <td>${escapeHtml(it.nombre)} ${escapeHtml(etiquetaUnidad(it.unidad))}${it.esPan ? " (pan)" : ""}</td>
         <td class="hi-col-num num-mono">${it.cantidadPedida}</td>
         <td class="hi-col-num num-mono">${enviada}</td>
-        <td>${escapeHtml(it.notaItem || "")}</td>`;
+        <td>${escapeHtml(it.notaItem)}</td>`;
       tbody.appendChild(tr);
     });
 
