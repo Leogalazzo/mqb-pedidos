@@ -52,6 +52,16 @@
         <img src="https://imagedelivery.net/ut8GNCA1obOu4JnXrJ_J9Q/e7b59903-06e0-48f8-1bb1-71bd6da8a800/public" alt="Más que Burgers">
       </div>
       <div class="text-xs mb-8 text-center" style="color:var(--tinta-suave)">Fábrica</div>
+      <nav class="space-y-1.5">
+        <button data-tab="pedidos" class="tab-btn w-full text-left px-3.5 py-2.5 rounded-lg font-600 text-sm">
+          <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"></path><path d="M9 12h6M9 16h6M9 8h2"></path></svg>
+          <span>Pedidos</span>
+        </button>
+        <button data-tab="faltantes" class="tab-btn w-full text-left px-3.5 py-2.5 rounded-lg font-600 text-sm">
+          <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <span>Faltantes</span>
+        </button>
+      </nav>
     </div>
     <div class="pt-5 border-t" style="border-color:var(--linea)">
       <div id="usuario-nombre" class="text-sm font-600 mb-2"></div>
@@ -64,6 +74,9 @@
 
   <!-- Main -->
   <main class="flex-1 px-4 pt-20 pb-6 md:px-8 md:pt-6 no-imprimir">
+
+    <!-- TAB PEDIDOS -->
+    <section id="tab-pedidos">
     <h1 class="font-display text-2xl font-700 mb-5">Pedidos para producción</h1>
     <p class="text-sm mb-5" style="color:var(--tinta-suave)">
       Pedidos de las sucursales.
@@ -84,6 +97,30 @@
 
     <div id="lista-pedidos" class="space-y-3"></div>
     <div id="pedidos-vacio" class="estado-vacio hidden"></div>
+    </section>
+
+    <!-- TAB FALTANTES -->
+    <section id="tab-faltantes" class="hidden">
+      <h1 class="font-display text-2xl font-700 mb-2">Faltantes</h1>
+      <p class="text-sm mb-5" style="color:var(--tinta-suave)">
+        Anotá acá lo que falta para hacer las preparaciones (por ejemplo: lechuga 1kg, tomate 2kg).
+      </p>
+
+      <form id="form-faltante" class="ticket p-5 mb-6">
+        <label for="faltante-texto" class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">¿Qué falta?</label>
+        <textarea id="faltante-texto" rows="4" maxlength="2000" required
+          class="w-full border rounded px-3 py-2 text-sm"
+          style="border-color:var(--linea)"
+          placeholder="Ej:&#10;Lechuga 1kg&#10;Tomate 2kg"></textarea>
+        <div class="mt-3 flex justify-end">
+          <button type="submit" id="btn-enviar-faltante" class="px-4 py-2 rounded text-white font-600 text-sm whitespace-nowrap" style="background:var(--ambar-oscuro)">Enviar</button>
+        </div>
+      </form>
+
+      <div class="text-xs font-600 mb-2" style="color:var(--tinta-suave)">Enviados recientemente</div>
+      <div id="lista-faltantes" class="space-y-3"></div>
+      <p id="faltantes-vacio" class="text-sm hidden" style="color:var(--tinta-suave)">Todavía no enviaste ningún faltante.</p>
+    </section>
   </main>
 </div>
 
@@ -260,7 +297,7 @@
 <script type="module">
 import {
   auth, db, onAuthStateChanged, signOut, obtenerPerfil,
-  collection, query, where, orderBy, limit, onSnapshot, updateDoc, doc, serverTimestamp, arrayUnion
+  collection, query, where, orderBy, limit, onSnapshot, updateDoc, addDoc, doc, serverTimestamp, arrayUnion
 } from "./firebase-config.js";
 import { conCarga, ocultarCargaPagina } from "./ui.js";
 import { alertaBonita } from "./avisos.js";
@@ -307,6 +344,18 @@ btnMenu.addEventListener("click", abrirMenu);
 btnCerrarMenu.addEventListener("click", cerrarMenu);
 sidebarOverlay.addEventListener("click", cerrarMenu);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarMenu(); });
+
+// ---------- Tabs ----------
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("activo"));
+    btn.classList.add("activo");
+    document.getElementById("tab-pedidos").classList.toggle("hidden", btn.dataset.tab !== "pedidos");
+    document.getElementById("tab-faltantes").classList.toggle("hidden", btn.dataset.tab !== "faltantes");
+    cerrarMenu(); // en mobile, elegir una sección cierra el sidebar
+  });
+});
+document.querySelector('.tab-btn[data-tab="pedidos"]').click();
 
 // ---------- Badges y fechas ----------
 function badgeHtml(estado){
@@ -528,6 +577,13 @@ function iniciarListeners(){
     },
     (err) => console.error("Error leyendo pedidos enviados:", err)
   );
+  // Últimos faltantes enviados (con su estado) para que fábrica vea si
+  // central ya los resolvió.
+  onSnapshot(
+    query(collection(db, "faltantes"), orderBy("creadoEn", "desc"), limit(30)),
+    (snap) => renderFaltantes(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    (err) => console.error("Error leyendo faltantes:", err)
+  );
 }
 
 // ---------- Modal ----------
@@ -734,6 +790,51 @@ document.getElementById("btn-confirmar-envio").addEventListener("click", async (
       mostrarLoaderRemito(false);
     }
   }, "Confirmando…");
+});
+
+// ---------- Faltantes ----------
+// Lo que fábrica anota acá se guarda en la colección "faltantes" y central lo
+// ve al instante en su pestaña "Faltantes". Cada documento:
+//   { texto, estado: "pendiente" | "resuelto", creadoPor, creadoEn,
+//     resueltoPor?, resueltoEn? }
+// El estado lo cambia central cuando ya se ocupó de reponerlo; fábrica solo
+// lo ve reflejado acá.
+function renderFaltantes(lista){
+  const cont = document.getElementById("lista-faltantes");
+  cont.innerHTML = "";
+  document.getElementById("faltantes-vacio").classList.toggle("hidden", lista.length > 0);
+  lista.forEach(f => {
+    const resuelto = f.estado === "resuelto";
+    const row = document.createElement("div");
+    row.className = `ticket px-4 py-3 ${resuelto ? "recibido" : "pendiente"}`;
+    row.innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-sm" style="white-space:pre-wrap; word-break:break-word">${escapeHtml(f.texto)}</div>
+          <div class="text-xs mt-1" style="color:var(--tinta-suave)">${fechaLegible(f.creadoEn)}${resuelto && f.resueltoPor ? " · resuelto por " + escapeHtml(f.resueltoPor) : ""}</div>
+        </div>
+        <div class="shrink-0"><span class="badge ${resuelto ? "badge-recibido" : "badge-pendiente"}">${resuelto ? "Resuelto" : "Pendiente"}</span></div>
+      </div>`;
+    cont.appendChild(row);
+  });
+}
+
+document.getElementById("form-faltante").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const input = document.getElementById("faltante-texto");
+  const texto = input.value.trim();
+  if (!texto) return;
+  conCarga(document.getElementById("btn-enviar-faltante"), async () => {
+    await addDoc(collection(db, "faltantes"), {
+      texto,
+      estado: "pendiente",
+      creadoPor: miNombre,
+      creadoEn: serverTimestamp(),
+    });
+    input.value = "";
+  }, "Enviando…").catch(() => {
+    alertaBonita("No se pudo enviar el faltante. Probá de nuevo.", { tipo: "error" });
+  });
 });
 
 // ---------- Impresión ----------
