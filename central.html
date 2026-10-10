@@ -59,9 +59,10 @@
           <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"></path><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"></path></svg>
           <span>Sucursales</span>
         </button>
-        <button data-tab="historial" class="tab-btn w-full text-left px-3.5 py-2.5 rounded-lg font-600 text-sm">
-          <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 15"></polyline></svg>
-          <span>Historial</span>
+        <button data-tab="faltantes" class="tab-btn w-full text-left px-3.5 py-2.5 rounded-lg font-600 text-sm">
+          <svg class="tab-btn-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <span>Faltantes</span>
+          <span id="faltantes-contador" class="hidden ml-2 px-1.5 rounded-full text-xs font-700" style="background:var(--rojo); color:#fff; min-width:1.25rem; text-align:center"></span>
         </button>
       </nav>
     </div>
@@ -155,32 +156,15 @@
       <p id="productos-vacio" class="text-sm hidden" style="color:var(--tinta-suave)">Todavía no cargaste productos.</p>
     </section>
 
-    <!-- TAB SUCURSALES -->
+    <!-- TAB SUCURSALES (con el historial de cada una) -->
     <section id="tab-sucursales" class="hidden">
-      <h1 class="font-display text-2xl font-700 mb-2">Sucursales</h1>
-      <p class="text-sm mb-5" style="color:var(--tinta-suave)">
-        Este es el nombre oficial de cada sucursal, el que aparece en sus pedidos.
-        Cambiarlo acá no afecta los pedidos ya hechos (cada uno guarda su propia copia
-        del nombre al momento de crearse). La sucursal aparece en esta lista sola,
-        la primera vez que inicia sesión. Si eliminás una de esta lista, tampoco
-        afecta los pedidos ya hechos; si esa cuenta vuelve a iniciar sesión, va a
-        reaparecer sola con un nombre provisorio.
-      </p>
-      <div id="lista-sucursales" class="space-y-2"></div>
-      <p id="sucursales-vacio" class="text-sm hidden" style="color:var(--tinta-suave)">
-        Todavía no inició sesión ninguna sucursal.
-      </p>
-    </section>
-
-    <!-- TAB HISTORIAL -->
-    <section id="tab-historial" class="hidden">
       <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
-        <h1 class="font-display text-2xl font-700">Historial por sucursal</h1>
+        <h1 class="font-display text-2xl font-700">Sucursales</h1>
         <button type="button" id="btn-actualizar-historial" class="text-xs font-600" style="color:var(--tinta-suave)">Actualizar</button>
       </div>
       <p class="text-sm mb-5" style="color:var(--tinta-suave)">
-        El detalle completo de todo lo que pidió cada sucursal, no solo el último pedido:
-        elegí una sucursal para ver todos sus pedidos y el total acumulado por producto.
+        Elegí una sucursal para ver el historial completo de lo que pidió: todos sus pedidos
+        y el total acumulado por producto.
         Los pedidos de cada sucursal se cargan de a tandas para no traer todo el historial de una vez.
       </p>
       <div class="flex flex-col gap-4">
@@ -191,6 +175,27 @@
           <div class="historial-detalle-vacio">Elegí una sucursal de la lista para ver su historial completo.</div>
         </div>
       </div>
+    </section>
+
+    <!-- TAB FALTANTES -->
+    <section id="tab-faltantes" class="hidden">
+      <h1 class="font-display text-2xl font-700 mb-2">Faltantes de fábrica</h1>
+      <p class="text-sm mb-5" style="color:var(--tinta-suave)">
+        Lo que fábrica avisa que le falta para hacer las preparaciones. Cuando ya lo repusiste,
+        marcalo como resuelto para que fábrica lo vea.
+      </p>
+      <div class="filtros-panel">
+        <div class="filtros-fila">
+          <span class="filtros-etiqueta">Estado</span>
+          <div class="filtros-chips" id="filtros-faltantes">
+            <button data-estado="pendiente" class="filtro-btn chip-btn">Pendientes</button>
+            <button data-estado="resuelto" class="filtro-btn chip-btn">Resueltos</button>
+            <button data-estado="" class="filtro-btn chip-btn">Todos</button>
+          </div>
+        </div>
+      </div>
+      <div id="lista-faltantes" class="space-y-3"></div>
+      <p id="faltantes-vacio" class="text-sm hidden" style="color:var(--tinta-suave)"></p>
     </section>
   </main>
 </div>
@@ -449,7 +454,6 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById("usuario-nombre").textContent = miNombre;
   mostrarCargandoPedidos();
   mostrarCargandoLista("lista-productos", "Cargando productos…");
-  mostrarCargandoLista("lista-sucursales", "Cargando sucursales…");
   iniciarListeners();
   ocultarCargaPagina();
 });
@@ -529,11 +533,11 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     document.getElementById("tab-pedidos").classList.toggle("hidden", btn.dataset.tab !== "pedidos");
     document.getElementById("tab-productos").classList.toggle("hidden", btn.dataset.tab !== "productos");
     document.getElementById("tab-sucursales").classList.toggle("hidden", btn.dataset.tab !== "sucursales");
-    document.getElementById("tab-historial").classList.toggle("hidden", btn.dataset.tab !== "historial");
+    document.getElementById("tab-faltantes").classList.toggle("hidden", btn.dataset.tab !== "faltantes");
     // El conteo de pedidos por sucursal no se trae al cargar la página (para
     // no gastar lecturas de más si nadie mira esta pestaña); se carga recién
     // la primera vez que se abre.
-    if (btn.dataset.tab === "historial" && !conteosCargados) cargarConteosSucursales();
+    if (btn.dataset.tab === "sucursales" && sucursalesRecibidas && !conteosCargados) cargarConteosSucursales();
     cerrarMenu(); // en mobile, elegir una sección cierra el sidebar
   });
 });
@@ -740,68 +744,6 @@ function pintarEdicionProducto(card, p){
       pintarVistaProducto(card, p);
     }, "Guardando…");
   });
-}
-
-// ================= SUCURSALES =================
-// El nombre oficial vive en Firestore (colección "sucursales", doc = uid).
-// Cada sucursal se crea sola (ver obtenerPerfil en firebase-config.js) la
-// primera vez que esa cuenta inicia sesión; acá central solo la renombra.
-function renderSucursales(sucursales){
-  const cont = document.getElementById("lista-sucursales");
-  cont.innerHTML = "";
-  document.getElementById("sucursales-vacio").classList.toggle("hidden", sucursales.length > 0);
-  sucursales
-    .slice()
-    .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""))
-    .forEach(s => {
-      const row = document.createElement("div");
-      row.className = "ticket px-4 py-3 flex flex-wrap items-center gap-2 sm:gap-3";
-      row.innerHTML = `
-        <input type="text" class="edit-nombre-sucursal w-full sm:w-auto sm:flex-1 border rounded px-3 py-2 text-sm font-600"
-          style="border-color:var(--linea)" value="${escapeHtml(s.nombre || "")}">
-        <span class="text-xs truncate" style="color:var(--tinta-suave); max-width:14rem">${escapeHtml(s.email || "")}</span>
-        <button type="button" class="btn-guardar-sucursal px-3 py-1.5 rounded text-xs font-600" style="color:var(--verde)">Guardar</button>
-        <button type="button" class="btn-eliminar-sucursal px-3 py-1.5 rounded text-xs font-600" style="color:var(--rojo)">Eliminar</button>`;
-
-      const input = row.querySelector(".edit-nombre-sucursal");
-      const btn = row.querySelector(".btn-guardar-sucursal");
-      btn.disabled = true;
-      btn.style.opacity = ".5";
-
-      input.addEventListener("input", () => {
-        const cambio = input.value.trim() !== (s.nombre || "") && input.value.trim() !== "";
-        btn.disabled = !cambio;
-        btn.style.opacity = cambio ? "1" : ".5";
-      });
-
-      btn.addEventListener("click", () => {
-        const nombreNuevo = input.value.trim();
-        if (!nombreNuevo) return;
-        conCarga(btn, async () => {
-          await updateDoc(doc(db, "sucursales", s.id), { nombre: nombreNuevo });
-          s.nombre = nombreNuevo;
-          btn.disabled = true;
-          btn.style.opacity = ".5";
-        }, "Guardando…");
-      });
-
-      const btnEliminar = row.querySelector(".btn-eliminar-sucursal");
-      btnEliminar.addEventListener("click", async () => {
-        const confirmado = await confirmarBonito(
-          `¿Eliminar "${s.nombre || s.email || "esta sucursal"}" de la lista?\n\nLos pedidos ya hechos no se ven afectados: guardan su propia copia del nombre. Si esa cuenta vuelve a iniciar sesión, va a reaparecer sola con un nombre provisorio.`,
-          { tipo: "peligro", textoConfirmar: "Eliminar" }
-        );
-        if (!confirmado) return;
-        conCarga(btnEliminar, async () => {
-          await deleteDoc(doc(db, "sucursales", s.id));
-          // La fila desaparece sola cuando llegue el próximo snapshot.
-        }, "Eliminando…", false).catch(() => {
-          alertaBonita("No se pudo eliminar la sucursal. Probá de nuevo.", { tipo: "error" });
-        });
-      });
-
-      cont.appendChild(row);
-    });
 }
 
 // ================= PEDIDOS =================
@@ -1622,6 +1564,7 @@ document.getElementById("btn-imprimir-remito").addEventListener("click", () => {
 // igual que en la pestaña "Pedidos": si central renombra una sucursal después,
 // los pedidos viejos siguen agrupados con el nombre que tenían en ese momento.
 let todasSucursales = [];
+let sucursalesRecibidas = false; // ya llegó la lista de sucursales de Firestore
 let conteosCargados = false;
 let conteosPorSucursal = new Map(); // nombre -> cantidad de pedidos
 let sucursalHistorialSeleccionada = null;
@@ -1858,6 +1801,88 @@ function imprimirHistorial(nombre, pedidos){
   window.print();
 }
 
+// ================= FALTANTES =================
+// Fábrica los carga desde fabrica.html (colección "faltantes"). Acá central
+// los ve en vivo y los marca como resueltos cuando ya repuso lo que faltaba.
+let todosFaltantes = [];
+let filtroFaltantes = "pendiente";
+
+function renderFaltantes(){
+  const pendientes = todosFaltantes.filter(f => f.estado !== "resuelto").length;
+  const contador = document.getElementById("faltantes-contador");
+  contador.textContent = pendientes;
+  contador.classList.toggle("hidden", pendientes === 0);
+
+  const filtrados = filtroFaltantes === ""
+    ? todosFaltantes
+    : todosFaltantes.filter(f => (f.estado === "resuelto" ? "resuelto" : "pendiente") === filtroFaltantes);
+
+  const vacio = document.getElementById("faltantes-vacio");
+  vacio.textContent = filtroFaltantes === "pendiente"
+    ? "No hay faltantes pendientes."
+    : "No hay faltantes en esta categoría.";
+  vacio.classList.toggle("hidden", filtrados.length > 0);
+
+  const cont = document.getElementById("lista-faltantes");
+  cont.innerHTML = "";
+  filtrados.forEach(f => {
+    const resuelto = f.estado === "resuelto";
+    const row = document.createElement("div");
+    row.className = `ticket px-4 py-3 ${resuelto ? "recibido" : "pendiente"}`;
+    row.innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-sm" style="white-space:pre-wrap; word-break:break-word">${escapeHtml(f.texto)}</div>
+          <div class="text-xs mt-1" style="color:var(--tinta-suave)">${escapeHtml(f.creadoPor || "Fábrica")} · ${fechaLegible(f.creadoEn)}${resuelto && f.resueltoPor ? " · resuelto por " + escapeHtml(f.resueltoPor) : ""}</div>
+        </div>
+        <div class="shrink-0"><span class="badge ${resuelto ? "badge-recibido" : "badge-pendiente"}">${resuelto ? "Resuelto" : "Pendiente"}</span></div>
+      </div>
+      <div class="mt-2 flex justify-end gap-2">
+        ${resuelto ? "" : `<button type="button" class="btn-resolver-faltante px-3 py-1.5 rounded text-xs font-600" style="color:var(--verde)">Marcar como resuelto</button>`}
+        <button type="button" class="btn-eliminar-faltante px-3 py-1.5 rounded text-xs font-600" style="color:var(--rojo)">Eliminar</button>
+      </div>`;
+
+    const btnResolver = row.querySelector(".btn-resolver-faltante");
+    if (btnResolver) {
+      btnResolver.addEventListener("click", () => {
+        conCarga(btnResolver, async () => {
+          await updateDoc(doc(db, "faltantes", f.id), {
+            estado: "resuelto",
+            resueltoPor: miNombre,
+            resueltoEn: serverTimestamp(),
+          });
+          // La tarjeta se actualiza sola cuando llegue el próximo snapshot.
+        }, "Guardando…", false).catch(() => {
+          alertaBonita("No se pudo marcar como resuelto. Probá de nuevo.", { tipo: "error" });
+        });
+      });
+    }
+
+    const btnEliminar = row.querySelector(".btn-eliminar-faltante");
+    btnEliminar.addEventListener("click", async () => {
+      const confirmado = await confirmarBonito("¿Eliminar este aviso de faltante?", { tipo: "peligro", textoConfirmar: "Eliminar" });
+      if (!confirmado) return;
+      conCarga(btnEliminar, async () => {
+        await deleteDoc(doc(db, "faltantes", f.id));
+      }, "Eliminando…", false).catch(() => {
+        alertaBonita("No se pudo eliminar el aviso. Probá de nuevo.", { tipo: "error" });
+      });
+    });
+
+    cont.appendChild(row);
+  });
+}
+
+document.querySelectorAll("#filtros-faltantes .filtro-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    filtroFaltantes = btn.dataset.estado;
+    document.querySelectorAll("#filtros-faltantes .filtro-btn").forEach(b => b.classList.remove("activo"));
+    btn.classList.add("activo");
+    renderFaltantes();
+  });
+});
+document.querySelector('#filtros-faltantes .filtro-btn[data-estado="pendiente"]').classList.add("activo");
+
 // ---------- Listeners de datos ----------
 // "productos" y "sucursales" son colecciones chicas (una fila por producto
 // del catálogo o por sucursal que existe), así que se pueden escuchar
@@ -1877,9 +1902,23 @@ function iniciarListeners(){
     collection(db, "sucursales"),
     (snap) => {
       todasSucursales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderSucursales(todasSucursales);
+      sucursalesRecibidas = true;
+      // Si la pestaña ya estaba abierta esperando la lista, se carga ahora.
+      if (!conteosCargados && !document.getElementById("tab-sucursales").classList.contains("hidden")) {
+        cargarConteosSucursales();
+      }
     },
     (err) => console.error("Error leyendo sucursales:", err)
+  );
+  // Faltantes que avisa fábrica: se escuchan siempre (aunque la pestaña no
+  // esté abierta) para que el contador del menú avise de los nuevos.
+  onSnapshot(
+    query(collection(db, "faltantes"), orderBy("creadoEn", "desc"), limit(100)),
+    (snap) => {
+      todosFaltantes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderFaltantes();
+    },
+    (err) => console.error("Error leyendo faltantes:", err)
   );
 }
 </script>
