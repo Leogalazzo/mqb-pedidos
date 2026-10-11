@@ -134,7 +134,7 @@
             <th class="py-2 font-600">Producto</th>
             <th class="py-2 font-600 text-right">Pedido</th>
             <th class="py-2 font-600 text-right">Enviado</th>
-            <th class="py-2 font-600">Nota de central</th>
+            <th class="py-2 pl-5 font-600">Nota de central</th>
           </tr>
         </thead>
         <tbody id="modal-items"></tbody>
@@ -155,7 +155,18 @@
       <button id="btn-confirmar-recepcion" class="px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--verde)">Confirmar recepción</button>
     </div>
 
+    <div id="bloque-editar" class="hidden mb-5">
+      <button id="btn-editar-pedido" type="button" class="px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Editar pedido</button>
+      <p class="text-xs mt-1" style="color:var(--tinta-suave)">Podés agregar productos, quitarlos o cambiar cantidades mientras central todavía no lo empezó a preparar.</p>
+    </div>
+
+    <div id="modal-motivo-cancelacion-wrap" class="mb-4 text-sm hidden">
+      <span class="font-600">Motivo de la cancelación:</span> <span id="modal-motivo-cancelacion"></span>
+    </div>
+
     <div id="bloque-cancelar" class="hidden mb-5 pt-1">
+      <label for="motivo-cancelacion" class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Motivo de la cancelación (obligatorio)</label>
+      <textarea id="motivo-cancelacion" rows="2" maxlength="500" class="w-full border rounded px-3 py-2 text-sm mb-2" style="border-color:var(--linea)" placeholder="Ej: me equivoqué de productos / ya no lo necesito"></textarea>
       <button id="btn-cancelar-pedido" type="button" class="btn-texto-peligro">Cancelar este pedido</button>
       <p class="text-xs mt-1" style="color:var(--tinta-suave)">Solo se puede cancelar mientras central todavía no lo empezó a preparar.</p>
     </div>
@@ -187,6 +198,31 @@
     <div class="modal-botones modal-fijo">
       <button id="btn-confirmar-envio-pedido" class="px-5 py-2.5 rounded text-white font-600 text-sm" style="background:var(--ambar-oscuro)">Confirmar y enviar</button>
       <button id="btn-cancelar-confirmar-pedido" type="button" class="px-4 py-2.5 rounded border font-600 text-sm" style="border-color:var(--linea)">Seguir editando</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: editar un pedido que sigue pendiente -->
+<div id="modal-editar-pedido" class="fixed inset-0 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.65); z-index:50">
+  <div class="modal-caja rounded-xl max-w-3xl w-full p-4 sm:p-6" style="background:var(--papel-alto); box-shadow:var(--sombra-modal)">
+    <div class="flex items-start justify-between mb-3 modal-fijo">
+      <div class="font-display text-xl font-700">Editar pedido <span id="editar-numero" class="num-mono"></span></div>
+      <button id="modal-editar-cerrar" class="text-2xl leading-none" style="color:var(--tinta-suave)">&times;</button>
+    </div>
+
+    <div class="modal-cuerpo">
+      <input type="text" id="buscador-edicion" placeholder="Buscar producto por nombre o categoría…"
+        class="w-full sm:w-72 border rounded px-3 py-2 text-sm mb-3" style="border-color:var(--linea)">
+      <div id="lista-edicion" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4"></div>
+      <div class="mb-2">
+        <label class="block text-xs font-600 mb-1" style="color:var(--tinta-suave)">Nota del pedido (opcional)</label>
+        <textarea id="editar-nota" rows="2" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--linea)"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-botones modal-fijo">
+      <button id="btn-guardar-edicion" class="px-5 py-2.5 rounded text-white font-600 text-sm" style="background:var(--ambar-oscuro)">Guardar cambios</button>
+      <button id="btn-cancelar-edicion" type="button" class="px-4 py-2.5 rounded border font-600 text-sm" style="border-color:var(--linea)">Descartar</button>
     </div>
   </div>
 </div>
@@ -279,6 +315,7 @@ const elementosQueBloqueanScroll = [
   document.getElementById("modal"),
   document.getElementById("modal-confirmar-pedido"),
   document.getElementById("modal-pedido-enviado"),
+  document.getElementById("modal-editar-pedido"),
 ].filter(Boolean);
 
 // Con overflow:hidden solo, el fondo en iOS/Android igual "rebota" y a
@@ -631,6 +668,7 @@ const textoEstado = {
   pan_listo: "Panadería marcó el pan como listo",
   rechazado_pan: "Rechazado por la panadería",
   pan_rechazado: "Panadería rechazó el pan de este pedido",
+  editado: "Pedido editado por la sucursal",
 };
 
 function renderHistorial(pedido){
@@ -703,7 +741,7 @@ function abrirModal(pedido){
       <td class="py-2">${it.nombre} <span class="text-xs" style="color:var(--tinta-suave)">(${etiquetaUnidad(it.unidad)})</span></td>
       <td class="py-2 text-right num-mono">${it.cantidadPedida}</td>
       <td class="py-2 text-right num-mono ${difiere ? 'font-700' : ''}" style="${difiere ? 'color:var(--rojo)' : ''}">${it.cantidadEnviada ?? "—"}</td>
-      <td class="py-2 text-xs">${it.notaItem || ""}</td>`;
+      <td class="py-2 pl-5 text-xs">${it.notaItem || ""}</td>`;
     tbody.appendChild(tr);
   });
 
@@ -713,6 +751,14 @@ function abrirModal(pedido){
   // que central lo marca en preparación, ya está gastando mercadería/tiempo
   // en armarlo, así que a partir de ahí la sucursal ya no puede bajarlo sola.
   document.getElementById("bloque-cancelar").classList.toggle("hidden", pedido.estado !== "pendiente");
+  document.getElementById("bloque-editar").classList.toggle("hidden", !puedeEditar(pedido));
+  const motivoWrap = document.getElementById("modal-motivo-cancelacion-wrap");
+  if (pedido.estado === "cancelado" && pedido.notaCancelacion) {
+    motivoWrap.classList.remove("hidden");
+    document.getElementById("modal-motivo-cancelacion").textContent = pedido.notaCancelacion;
+  } else {
+    motivoWrap.classList.add("hidden");
+  }
 
   renderHistorial(pedido);
   document.getElementById("modal").classList.remove("hidden");
@@ -720,6 +766,7 @@ function abrirModal(pedido){
 }
 
 document.getElementById("modal-cerrar").addEventListener("click", () => {
+  document.getElementById("motivo-cancelacion").value = "";
   document.getElementById("modal").classList.add("hidden");
   document.getElementById("modal").classList.remove("flex");
 });
@@ -737,21 +784,178 @@ document.getElementById("btn-confirmar-recepcion").addEventListener("click", (e)
   }, "Confirmando…");
 });
 
+// ================= EDITAR PEDIDO =================
+// Solo mientras central/fábrica no lo tocó: estado "pendiente" y, si tiene pan,
+// que la panadería todavía no lo haya empezado (panEstado "pendiente").
+function puedeEditar(p){
+  return p.estado === "pendiente" && (!p.panEstado || p.panEstado === "pendiente");
+}
+
+function escHtml(str){
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+let pedidoEnEdicion = null;
+let cantidadesEdicion = new Map(); // productoId -> cantidad
+let terminoEdicion = "";
+
+// Catálogo activo + los productos del pedido que ya no estén activos
+// (así no se pierden al editar).
+function productosEdicion(){
+  const lista = catalogo.map(p => ({ id: p.id, nombre: p.nombre, unidad: p.unidad, categoria: p.categoria, esPan: !!p.esPan }));
+  (pedidoEnEdicion?.items || []).forEach(it => {
+    if (!lista.some(p => p.id === it.productoId)) {
+      lista.push({ id: it.productoId, nombre: it.nombre, unidad: it.unidad, categoria: null, esPan: !!it.esPan });
+    }
+  });
+  return lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+
+function renderEdicion(){
+  const cont = document.getElementById("lista-edicion");
+  cont.innerHTML = "";
+  const termino = terminoEdicion.trim().toLowerCase();
+  productosEdicion()
+    .filter(p => !termino || (p.nombre || "").toLowerCase().includes(termino) || (p.categoria || "").toLowerCase().includes(termino))
+    .forEach(p => {
+      const actual = cantidadesEdicion.get(p.id) || 0;
+      const card = document.createElement("div");
+      card.className = "producto-card" + (actual > 0 ? " con-cantidad" : "");
+      card.innerHTML = `
+        <div>
+          <div class="producto-card-nombre">${escHtml(p.nombre)}</div>
+          <div class="producto-card-meta">${escHtml(etiquetaUnidad(p.unidad))}${p.categoria ? " · " + escHtml(p.categoria) : ""}</div>
+        </div>
+        <div class="stepper">
+          <button type="button" class="stepper-btn" data-accion="restar" aria-label="Restar">−</button>
+          <input type="number" min="0" step="any" inputmode="decimal" class="input-cant stepper-input" value="${actual}">
+          <button type="button" class="stepper-btn" data-accion="sumar" aria-label="Sumar">+</button>
+        </div>`;
+      const input = card.querySelector("input");
+      const sincronizar = () => {
+        const v = Number(input.value) || 0;
+        cantidadesEdicion.set(p.id, v);
+        card.classList.toggle("con-cantidad", v > 0);
+      };
+      card.querySelector('[data-accion="restar"]').addEventListener("click", () => { input.value = Math.max(0, (Number(input.value) || 0) - 1); sincronizar(); });
+      card.querySelector('[data-accion="sumar"]').addEventListener("click", () => { input.value = (Number(input.value) || 0) + 1; sincronizar(); });
+      input.addEventListener("input", sincronizar);
+      cont.appendChild(card);
+    });
+}
+
+function abrirModalEditar(){
+  pedidoEnEdicion = pedidoActivo;
+  cantidadesEdicion = new Map();
+  (pedidoEnEdicion.items || []).forEach(it => cantidadesEdicion.set(it.productoId, Number(it.cantidadPedida) || 0));
+  terminoEdicion = "";
+  document.getElementById("buscador-edicion").value = "";
+  document.getElementById("editar-nota").value = pedidoEnEdicion.notaSucursalPedido || "";
+  document.getElementById("editar-numero").textContent = "#" + (pedidoEnEdicion.numero ?? "—");
+  renderEdicion();
+  const m = document.getElementById("modal-editar-pedido");
+  m.classList.remove("hidden");
+  m.classList.add("flex");
+}
+function cerrarModalEditar(){
+  const m = document.getElementById("modal-editar-pedido");
+  m.classList.add("hidden");
+  m.classList.remove("flex");
+  pedidoEnEdicion = null;
+}
+
+document.getElementById("btn-editar-pedido").addEventListener("click", abrirModalEditar);
+document.getElementById("modal-editar-cerrar").addEventListener("click", cerrarModalEditar);
+document.getElementById("btn-cancelar-edicion").addEventListener("click", cerrarModalEditar);
+document.getElementById("buscador-edicion").addEventListener("input", (e) => {
+  terminoEdicion = e.target.value;
+  renderEdicion();
+});
+
+document.getElementById("btn-guardar-edicion").addEventListener("click", async (e) => {
+  const btn = e.currentTarget; // antes de cualquier await
+  const original = pedidoEnEdicion;
+  if (!original) return;
+  const prods = productosEdicion();
+  const viejos = new Map((original.items || []).map(it => [it.productoId, it]));
+  const items = [];
+  const cambios = [];
+  cantidadesEdicion.forEach((cant, id) => {
+    if (!(cant > 0)) return;
+    const prev = viejos.get(id);
+    if (prev) {
+      items.push({ ...prev, cantidadPedida: cant });
+      if (Number(prev.cantidadPedida) !== cant) cambios.push(`${prev.nombre} ${prev.cantidadPedida}→${cant}`);
+    } else {
+      const prod = prods.find(p => p.id === id);
+      if (!prod) return;
+      items.push({ productoId: id, nombre: prod.nombre, unidad: prod.unidad, esPan: !!prod.esPan, cantidadPedida: cant, cantidadEnviada: null, notaItem: "" });
+      cambios.push(`+ ${prod.nombre} ${cant}`);
+    }
+  });
+  viejos.forEach((prev, id) => {
+    if (!items.some(it => it.productoId === id)) cambios.push(`− ${prev.nombre}`);
+  });
+
+  if (items.length === 0) {
+    await alertaBonita("El pedido no puede quedar vacío. Si ya no lo necesitás, cancelalo.", { tipo: "advertencia" });
+    return;
+  }
+  const nota = document.getElementById("editar-nota").value.trim();
+  const notaCambio = nota !== (original.notaSucursalPedido || "");
+  if (cambios.length === 0 && !notaCambio) {
+    cerrarModalEditar();
+    return;
+  }
+  if (notaCambio) cambios.push("cambió la nota");
+
+  conCarga(btn, async () => {
+    // Se relee el pedido: mientras se editaba, central/fábrica/panadería pudo avanzar.
+    const fresco = await getDoc(doc(db, "pedidos", original.id));
+    if (!fresco.exists() || !puedeEditar(fresco.data())) {
+      cerrarModalEditar();
+      await alertaBonita("Este pedido ya empezó a prepararse (o cambió de estado) y no se puede editar.", { tipo: "advertencia" });
+      return;
+    }
+    const tienePan = items.some(it => it.esPan);
+    await updateDoc(doc(db, "pedidos", original.id), {
+      items,
+      panEstado: tienePan ? "pendiente" : null,
+      notaSucursalPedido: nota,
+      actualizadoEn: serverTimestamp(),
+      historial: arrayUnion({ estado: "editado", en: Date.now(), por: usuario.nombre, nota: cambios.join("; ") }),
+    });
+    cerrarModalEditar();
+  }, "Guardando…");
+});
+
 document.getElementById("btn-cancelar-pedido").addEventListener("click", async (e) => {
+  // currentTarget deja de ser válido después de un await (era la causa de que
+  // no se pudiera cancelar): se guarda el botón y el pedido antes.
+  const btn = e.currentTarget;
+  const pedido = pedidoActivo;
+  const motivo = document.getElementById("motivo-cancelacion").value.trim();
+  if (!motivo) {
+    await alertaBonita("Para cancelar el pedido tenés que escribir el motivo.", { tipo: "advertencia" });
+    document.getElementById("motivo-cancelacion").focus();
+    return;
+  }
   const confirmado = await confirmarBonito(
-    `¿Cancelar el pedido #${pedidoActivo.numero ?? ""}? Esta acción no se puede deshacer.`,
+    `¿Cancelar el pedido #${pedido.numero ?? ""}? Esta acción no se puede deshacer.`,
     { tipo: "peligro", textoConfirmar: "Cancelar pedido", textoCancelar: "Volver" }
   );
   if (!confirmado) return;
-  conCarga(e.currentTarget, async () => {
-    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+  conCarga(btn, async () => {
+    await updateDoc(doc(db, "pedidos", pedido.id), {
       estado: "cancelado",
+      notaCancelacion: motivo,
       // Se saca de la vista de la panadería (si no tenía pan, esto no
       // cambia nada): un pedido cancelado no se hace ni se despacha.
       panEstado: null,
       actualizadoEn: serverTimestamp(),
-      historial: arrayUnion({ estado: "cancelado", en: Date.now(), por: usuario.nombre }),
+      historial: arrayUnion({ estado: "cancelado", en: Date.now(), por: usuario.nombre, nota: motivo }),
     });
+    document.getElementById("motivo-cancelacion").value = "";
     document.getElementById("modal").classList.add("hidden");
   }, "Cancelando…");
 });
@@ -790,8 +994,10 @@ function iniciarListeners(){
             // se preserva acá, un cambio de central mientras la sucursal está
             // escribiendo se lo borraría de la pantalla sin avisar.
             const notaEnCurso = document.getElementById("modal-nota-sucursal").value;
+            const motivoEnCurso = document.getElementById("motivo-cancelacion").value;
             abrirModal(actualizado);
             if (notaEnCurso) document.getElementById("modal-nota-sucursal").value = notaEnCurso;
+            if (motivoEnCurso) document.getElementById("motivo-cancelacion").value = motivoEnCurso;
           }
         }
       }
