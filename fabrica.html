@@ -144,8 +144,8 @@
             <tr class="text-left border-b" style="border-color:var(--linea); color:var(--tinta-suave)">
               <th class="py-2 font-600">Producto</th>
               <th class="py-2 font-600 text-right">Pedido</th>
-              <th class="py-2 font-600 text-right">Enviar</th>
-              <th class="py-2 font-600">Nota (si difiere)</th>
+              <th id="th-enviado" class="py-2 font-600 text-right">Enviado</th>
+              <th id="th-nota" class="py-2 pl-5 font-600">Nota</th>
             </tr>
           </thead>
           <tbody id="modal-items"></tbody>
@@ -172,7 +172,7 @@
 
     <div class="modal-botones mb-5 modal-fijo">
       <button id="btn-imprimir" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Imprimir hoja de producción</button>
-      <button id="btn-en-preparacion" data-spinner-oscuro="1" disabled title="Primero imprimí la hoja de producción (paso 1)" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Marcar en preparación</button>
+      <button id="btn-en-preparacion" data-spinner-oscuro="1" disabled title="Primero imprimí la hoja de producción" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Marcar en preparación</button>
       <button id="btn-reimprimir-remito" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Reimprimir remito</button>
       <button id="btn-confirmar-envio" class="hidden px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--verde)">Confirmar envío</button>
     </div>
@@ -289,9 +289,6 @@
   </table>
   <div class="hi-resumen" id="rm-resumen"></div>
 
-  <div id="rm-nota-sucursal-wrap" class="hi-nota hidden">
-    <span class="hi-nota-label">Nota de la sucursal</span><span id="rm-nota-sucursal"></span>
-  </div>
   <div id="rm-nota-central-wrap" class="hi-nota hidden">
     <span class="hi-nota-label">Nota</span><span id="rm-nota-central"></span>
   </div>
@@ -557,21 +554,6 @@ function iniciarListeners(){
       // acá: aparecen recién cuando panadería marca el pan como listo.
       pedidosPan = todos.filter(panListoParaEnviar);
       renderPedidos();
-      // Si el modal tiene un pedido ya enviado/recibido, lo maneja el otro listener.
-      if (pedidoActivo && ESTADOS_ACTIVOS.includes(pedidoActivo.estado)) {
-        const actualizado = [...pedidosFabrica, ...pedidosPan].find(p => p.id === pedidoActivo.id);
-        if (actualizado) {
-          pedidoActivo = actualizado;
-          actualizarFilasYHistorial(actualizado);
-        } else {
-          // Ya no está entre los activos (por ejemplo, central lo rechazó
-          // mientras fábrica lo tenía abierto): se cierra el modal para no
-          // dejar una vista vieja con botones que ya no corresponden.
-          pedidoActivo = null;
-          document.getElementById("modal").classList.add("hidden");
-          document.getElementById("modal").classList.remove("flex");
-        }
-      }
     },
     (err) => console.error("Error leyendo pedidos:", err)
   );
@@ -584,13 +566,6 @@ function iniciarListeners(){
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(p => itemsVisibles(p).length > 0);
       renderPedidos();
-      if (pedidoActivo && ESTADOS_ENVIADOS.includes(pedidoActivo.estado)) {
-        const actualizado = pedidosEnviados.find(p => p.id === pedidoActivo.id);
-        if (actualizado) {
-          pedidoActivo = actualizado;
-          actualizarFilasYHistorial(actualizado);
-        }
-      }
     },
     (err) => console.error("Error leyendo pedidos enviados:", err)
   );
@@ -632,15 +607,96 @@ function actualizarEtapaInfo(pedido){
   return { bloqueaEnvio };
 }
 
-// Refresca en vivo la tabla y el historial sin redibujar todo el modal —
-// para cuando panadería resuelve el pan mientras fábrica tiene el pedido
-// abierto, o cuando central lo actualiza por su lado.
-function actualizarFilasYHistorial(pedido){
-  actualizarEtapaInfo(pedido);
-  renderHistorial(pedido);
+// ---------- Actualización en vivo del modal abierto ----------
+// Mientras el modal de un pedido está abierto se escucha ESE documento
+// directamente (no la lista): así se actualiza aunque el pedido no esté en
+// la tanda cargada (buscado por número, abierto desde un historial) y se
+// refresca el modal entero (botones, notas, tabla, historial), no solo
+// algunas partes. Lo que la persona ya escribió y no guardó se conserva.
+let unsubPedidoModal = null;
+let firmaPedidoModal = null;
+function firmaDePedido(p){ const { id, ...resto } = p; return JSON.stringify(resto); }
+function dejarDeEscucharPedido(){
+  if (unsubPedidoModal) { unsubPedidoModal(); unsubPedidoModal = null; }
 }
+function escucharPedidoAbierto(pedido){
+  dejarDeEscucharPedido();
+  firmaPedidoModal = firmaDePedido(pedido);
+  const id = pedido.id;
+  unsubPedidoModal = onSnapshot(
+    doc(db, "pedidos", id),
+    (snap) => {
+      // Si el modal se cerró (o se abrió otro pedido), ya no hay nada que refrescar.
+      if (document.getElementById("modal").classList.contains("hidden") || !pedidoActivo || pedidoActivo.id !== id) {
+        dejarDeEscucharPedido();
+        return;
+      }
+      if (!snap.exists()) { cerrarModalPorCambio(null, "Este pedido ya no existe."); return; }
+      const p = { id: snap.id, ...snap.data() };
+      const firma = firmaDePedido(p);
+      if (firma === firmaPedidoModal) return; // nada cambió de verdad
+      firmaPedidoModal = firma;
+      const previo = pedidoActivo;
+      pedidoActivo = p;
+      refrescarModal(p, previo);
+    },
+    (err) => console.error("Error escuchando el pedido abierto:", err)
+  );
+}
+new MutationObserver(() => {
+  if (document.getElementById("modal").classList.contains("hidden")) dejarDeEscucharPedido();
+}).observe(document.getElementById("modal"), { attributes: true, attributeFilter: ["class"] });
 
 function abrirModal(pedido){
+  renderModal(pedido);
+  escucharPedidoAbierto(pedido);
+}
+
+// Si el último movimiento del historial lo hizo esta misma cuenta hace instantes,
+// el cambio de estado fue por su propia acción y no hace falta avisarle nada.
+function fueAccionPropia(p){
+  const ult = (p?.historial || []).slice(-1)[0];
+  return !!ult && ult.por === miNombre && Date.now() - (ult.en || 0) < 15000;
+}
+function cerrarModalPorCambio(p, mensaje){
+  document.getElementById("modal").classList.add("hidden");
+  document.getElementById("modal").classList.remove("flex");
+  if (mensaje && !(p && fueAccionPropia(p))) alertaBonita(mensaje, { tipo: "advertencia" });
+}
+
+function refrescarModal(p, previo){
+  if (!ESTADOS_ACTIVOS.includes(p.estado) && !ESTADOS_ENVIADOS.includes(p.estado)) {
+    cerrarModalPorCambio(p, `El pedido #${p.numero ?? ""} cambió a "${textoEstado[p.estado] || p.estado}" y ya no está disponible en esta pantalla.`);
+    return;
+  }
+  const cuerpo = document.querySelector("#modal .modal-cuerpo");
+  const scroll = cuerpo ? cuerpo.scrollTop : 0;
+  // Lo que fábrica ya tipeó y todavía no confirmó (distinto de lo que se había mostrado).
+  const tipeado = [];
+  document.querySelectorAll("#modal-items .input-enviada, #modal-items .input-nota-item").forEach(inp => {
+    const it = (previo.items || [])[Number(inp.dataset.idx)];
+    if (!it) return;
+    const esCant = inp.classList.contains("input-enviada");
+    const porDefecto = esCant ? String(it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida) : (it.notaItem || "");
+    if (inp.value !== porDefecto) tipeado.push({ idx: inp.dataset.idx, esCant, valor: inp.value });
+  });
+  const notaEl = document.getElementById("modal-nota-general");
+  const editable = !document.getElementById("modal-nota-general-editar-wrap").classList.contains("hidden");
+  const notaTipeada = editable && notaEl.value !== (previo.notaCentral || "") ? notaEl.value : null;
+
+  renderModal(p);
+
+  tipeado.forEach(t => {
+    const inp = document.querySelector(`#modal-items .${t.esCant ? "input-enviada" : "input-nota-item"}[data-idx="${t.idx}"]`);
+    if (inp) inp.value = t.valor;
+  });
+  if (notaTipeada !== null && !document.getElementById("modal-nota-general-editar-wrap").classList.contains("hidden")) {
+    notaEl.value = notaTipeada;
+  }
+  if (cuerpo) cuerpo.scrollTop = scroll;
+}
+
+function renderModal(pedido){
   pedidoActivo = pedido;
   document.getElementById("modal-numero").textContent = "#" + (pedido.numero ?? "—");
   document.getElementById("modal-sucursal").textContent = pedido.sucursalNombre || "";
@@ -657,6 +713,10 @@ function abrirModal(pedido){
   const panSolo = soloPan(pedido);
   const recienLlegado = pedido.estado === "pendiente" && !panSolo;
   const soloLectura = ESTADOS_ENVIADOS.includes(pedido.estado);
+  // Recién llegado: todavía no hay nada enviado ni notas, así que solo se
+  // muestran Producto y Pedido.
+  document.getElementById("th-enviado").classList.toggle("hidden", recienLlegado);
+  document.getElementById("th-nota").classList.toggle("hidden", recienLlegado);
   const tbody = document.getElementById("modal-items");
   tbody.innerHTML = "";
   (pedido.items || []).forEach((it, idx) => {
@@ -683,9 +743,9 @@ function abrirModal(pedido){
 
     tr.innerHTML = `
       <td class="py-2">${escapeHtml(it.nombre)} <span class="text-xs" style="color:var(--tinta-suave)">(${escapeHtml(etiquetaUnidad(it.unidad))})</span></td>
-      <td class="py-2 text-right num-mono">${it.cantidadPedida}</td>
+      <td class="py-2 text-right num-mono">${it.cantidadPedida}</td>` + (recienLlegado ? "" : `
       <td class="py-2 text-right celda-enviado">${celdaEnviado}</td>
-      <td class="py-2 celda-nota">${celdaNota}</td>`;
+      <td class="py-2 pl-5 celda-nota">${celdaNota}</td>`);
     tbody.appendChild(tr);
   });
 
@@ -702,7 +762,7 @@ function abrirModal(pedido){
   const btnPreparacion = document.getElementById("btn-en-preparacion");
   const hojaYaImpresa = hojasImpresas.has(pedido.id);
   btnPreparacion.disabled = !hojaYaImpresa;
-  btnPreparacion.title = hojaYaImpresa ? "" : "Primero imprimí la hoja de producción (paso 1)";
+  btnPreparacion.title = hojaYaImpresa ? "" : "Primero imprimí la hoja de producción";
   document.getElementById("btn-confirmar-envio").classList.toggle("hidden", recienLlegado || soloLectura);
   document.getElementById("btn-reimprimir-remito").classList.toggle("hidden", !soloLectura);
 
@@ -981,10 +1041,6 @@ function imprimirRemito(p, itemsCompletos, notaGeneral, fechaEnvioTexto){
   document.getElementById("rm-sucursal").textContent = p.sucursalNombre || "";
   document.getElementById("rm-fecha-pedido").textContent = fechaLegible(p.creadoEn);
   document.getElementById("rm-fecha-envio").textContent = fechaEnvioTexto;
-
-  const notaSucursal = (p.notaSucursalPedido || "").trim();
-  document.getElementById("rm-nota-sucursal-wrap").classList.toggle("hidden", !notaSucursal);
-  document.getElementById("rm-nota-sucursal").textContent = notaSucursal;
 
   const notaCentral = (notaGeneral || "").trim();
   document.getElementById("rm-nota-central-wrap").classList.toggle("hidden", !notaCentral);
