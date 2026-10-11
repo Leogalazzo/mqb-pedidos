@@ -434,6 +434,7 @@ button:active{ transform: translateY(1px); }
   min-width:0;
   text-align:center;
 }
+.modal-botones button:disabled{ opacity:.45; cursor:not-allowed; }
 
 /* Campo de contraseña del login, con el ojito para mostrar/ocultar lo
    tipeado. El input le deja lugar al botón con padding derecho, y el
@@ -621,6 +622,16 @@ input[type="password"]::-ms-clear{ display:none; }
     padding-top:8px; font-size:11px; font-weight:700; color:var(--mqb-oscuro);
     text-transform:uppercase; letter-spacing:.03em; text-align:center;
   }
+}
+
+/* --- Hoja de producción: bloque de observaciones (título + renglones para escribir) --- */
+@media print{
+  #hoja-impresion .hi-observaciones{ margin-top:22px; break-inside:avoid; page-break-inside:avoid; }
+  #hoja-impresion .hi-observaciones-titulo{
+    font-weight:700; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em;
+    padding-bottom:14px; border-bottom:2px solid var(--mqb-oscuro); color:var(--mqb-oscuro);
+  }
+  #hoja-impresion .hi-observaciones-renglon{ height:1cm; border-bottom:1px solid var(--mqb-oscuro); }
 }
 
 /* --- Historial por sucursal: selector superior + panel de detalle debajo ---
