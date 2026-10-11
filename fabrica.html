@@ -172,7 +172,7 @@
 
     <div class="modal-botones mb-5 modal-fijo">
       <button id="btn-imprimir" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Imprimir hoja de producción</button>
-      <button id="btn-en-preparacion" data-spinner-oscuro="1" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Marcar en preparación</button>
+      <button id="btn-en-preparacion" data-spinner-oscuro="1" disabled title="Primero imprimí la hoja de producción (paso 1)" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Marcar en preparación</button>
       <button id="btn-reimprimir-remito" class="hidden px-4 py-2 rounded border font-600 text-sm" style="border-color:var(--linea)">Reimprimir remito</button>
       <button id="btn-confirmar-envio" class="hidden px-4 py-2 rounded text-white font-600 text-sm" style="background:var(--verde)">Confirmar envío</button>
     </div>
@@ -230,6 +230,20 @@
   </div>
   <div id="hi-nota-pan-wrap" class="hi-nota hidden">
     <span class="hi-nota-label">Aviso</span><span>Este pedido también incluye pan, que se prepara aparte en panadería.</span>
+  </div>
+
+  <div class="hi-observaciones">
+    <div class="hi-observaciones-titulo">Observaciones</div>
+    <div class="hi-observaciones-renglon"></div>
+    <div class="hi-observaciones-renglon"></div>
+    <div class="hi-observaciones-renglon"></div>
+    <div class="hi-observaciones-renglon"></div>
+    <div class="hi-observaciones-renglon"></div>
+    <div class="hi-observaciones-renglon"></div>
+    <div class="hi-observaciones-renglon"></div>
+    <div class="hi-observaciones-renglon"></div>
+    <div class="hi-observaciones-renglon"></div>
+    <div class="hi-observaciones-renglon"></div>
   </div>
 </div>
 
@@ -300,7 +314,7 @@ import {
   collection, query, where, orderBy, limit, onSnapshot, updateDoc, addDoc, doc, serverTimestamp, arrayUnion
 } from "./firebase-config.js";
 import { conCarga, ocultarCargaPagina } from "./ui.js";
-import { alertaBonita } from "./avisos.js";
+import { alertaBonita, confirmarBonito } from "./avisos.js";
 
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({
@@ -451,6 +465,9 @@ let filtroFabrica = "";
 const ESTADOS_ACTIVOS = ["pendiente", "en_preparacion"];
 const ESTADOS_ENVIADOS = ["enviado", "recibido"];
 let pedidoActivo = null;
+// Pedidos cuya hoja de producción ya se mandó a imprimir en esta sesión: recién
+// ahí se habilita "Marcar en preparación" (después de eso la hoja ya no se puede imprimir).
+const hojasImpresas = new Set();
 
 const VACIO_HTML = `
         <div class="estado-vacio-icono">
@@ -682,6 +699,10 @@ function abrirModal(pedido){
 
   document.getElementById("btn-imprimir").classList.toggle("hidden", !recienLlegado);
   document.getElementById("btn-en-preparacion").classList.toggle("hidden", !recienLlegado);
+  const btnPreparacion = document.getElementById("btn-en-preparacion");
+  const hojaYaImpresa = hojasImpresas.has(pedido.id);
+  btnPreparacion.disabled = !hojaYaImpresa;
+  btnPreparacion.title = hojaYaImpresa ? "" : "Primero imprimí la hoja de producción (paso 1)";
   document.getElementById("btn-confirmar-envio").classList.toggle("hidden", recienLlegado || soloLectura);
   document.getElementById("btn-reimprimir-remito").classList.toggle("hidden", !soloLectura);
 
@@ -709,8 +730,23 @@ document.getElementById("btn-en-preparacion").addEventListener("click", async (e
     document.getElementById("modal").classList.add("hidden");
     return;
   }
-  conCarga(e.currentTarget, async () => {
-    await updateDoc(doc(db, "pedidos", pedidoActivo.id), {
+
+  // currentTarget se pierde después de un await, así que se guarda antes.
+  const btn = e.currentTarget;
+  const pedidoId = pedidoActivo.id;
+  const confirmado = await confirmarBonito(
+    "¿Ya imprimiste la hoja de producción?\n\nUna vez que el pedido pase a preparación ya no vas a poder imprimirla de nuevo.",
+    { titulo: "Antes de continuar", tipo: "advertencia", textoConfirmar: "Sí, ya la imprimí", textoCancelar: "Volver" }
+  );
+  if (!confirmado) return;
+  // Mientras se mostraba el aviso el pedido pudo cambiar (por ejemplo, central lo rechazó).
+  if (!pedidoActivo || pedidoActivo.id !== pedidoId || pedidoActivo.estado !== "pendiente") {
+    await alertaBonita("Este pedido ya no está pendiente. Cerrá y volvé a abrirlo para ver su estado actual.", { tipo: "advertencia" });
+    document.getElementById("modal").classList.add("hidden");
+    return;
+  }
+  conCarga(btn, async () => {
+    await updateDoc(doc(db, "pedidos", pedidoId), {
       estado: "en_preparacion",
       actualizadoEn: serverTimestamp(),
       historial: arrayUnion({ estado: "en_preparacion", en: Date.now(), por: miNombre }),
@@ -904,6 +940,16 @@ document.getElementById("btn-imprimir").addEventListener("click", () => {
 
   prepararImpresion("hoja-impresion");
   window.print();
+
+  // No hay forma de saber si realmente salió la hoja (se puede cancelar el
+  // diálogo), así que acá solo se habilita el paso 2; al tocarlo se pide
+  // confirmar que ya se imprimió.
+  hojasImpresas.add(p.id);
+  if (pedidoActivo && pedidoActivo.id === p.id) {
+    const btnPrep = document.getElementById("btn-en-preparacion");
+    btnPrep.disabled = false;
+    btnPrep.title = "";
+  }
 });
 
 document.getElementById("btn-reimprimir-remito").addEventListener("click", () => {
