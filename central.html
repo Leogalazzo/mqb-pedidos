@@ -221,7 +221,7 @@
               <th class="py-2 font-600">Producto</th>
               <th class="py-2 font-600 text-right">Pedido</th>
               <th class="py-2 font-600 text-right">Enviar</th>
-              <th class="py-2 font-600">Nota (si difiere)</th>
+              <th class="py-2 pl-5 font-600">Nota</th>
             </tr>
           </thead>
           <tbody id="modal-items"></tbody>
@@ -243,6 +243,11 @@
       <!-- Nota de central, ya de solo lectura (pedido despachado, recibido o rechazado) -->
       <div id="modal-nota-central-lectura-wrap" class="mb-4 text-sm hidden">
         <span class="font-600">Nota de central:</span> <span id="modal-nota-central-lectura"></span>
+      </div>
+
+      <!-- Motivo que escribió la sucursal al cancelar el pedido -->
+      <div id="modal-motivo-cancelacion-wrap" class="mb-4 text-sm hidden">
+        <span class="font-600">Motivo de la cancelación (sucursal):</span> <span id="modal-motivo-cancelacion"></span>
       </div>
 
       <!-- Nota que dejó la sucursal al confirmar la recepción (solo pedidos recibidos) -->
@@ -387,9 +392,6 @@
   </table>
   <div class="hi-resumen" id="rm-resumen"></div>
 
-  <div id="rm-nota-sucursal-wrap" class="hi-nota hidden">
-    <span class="hi-nota-label">Nota de la sucursal</span><span id="rm-nota-sucursal"></span>
-  </div>
   <div id="rm-nota-central-wrap" class="hi-nota hidden">
     <span class="hi-nota-label">Nota de central</span><span id="rm-nota-central"></span>
   </div>
@@ -848,6 +850,7 @@ const textoEstado = {
   pan_listo: "Panadería marcó el pan como listo",
   rechazado_pan: "Rechazado por la panadería",
   pan_rechazado: "Panadería rechazó el pan de este pedido",
+  editado: "Pedido editado por la sucursal",
 };
 
 function renderHistorial(pedido){
@@ -1018,21 +1021,6 @@ function suscribirPedidos(){
       pedidosVisibles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       hayMasPedidos = pedidosVisibles.length >= limitePedidos;
       renderPedidos();
-      if (pedidoActivo) {
-        const actualizado = pedidosVisibles.find(p => p.id === pedidoActivo.id);
-        if (actualizado) {
-          pedidoActivo = actualizado;
-          // Si el modal de este pedido está abierto, refrescamos en vivo el
-          // estado del pan (badge, ayuda, botón de envío), sus filas de solo
-          // lectura en la tabla y el historial — pero nunca los inputs de
-          // los productos normales, que central puede estar completando en
-          // este momento.
-          if (!document.getElementById("modal").classList.contains("hidden")) {
-            actualizarInfoPan(actualizado);
-            actualizarFilasPanYHistorial(actualizado);
-          }
-        }
-      }
     },
     (err) => {
       console.error("Error leyendo pedidos:", err);
@@ -1195,39 +1183,79 @@ function actualizarInfoPan(pedido){
   return { soloPan, despachoDirecto, esperandoPan };
 }
 
-// Refresca en vivo las filas de la tabla (todas son de solo lectura en
-// central: los productos normales los completa fábrica y el pan lo
-// completa panadería) y el historial, sin redibujar todo el modal — así
-// central ve el progreso a medida que va pasando, sin tener que cerrar y
-// reabrir el pedido.
-function actualizarFilasPanYHistorial(pedido){
-  renderHistorial(pedido);
-
-  // Mientras el pedido está "pendiente" y no es despacho directo, la tabla
-  // entera muestra guiones (nada se decidió todavía) — no hay nada que
-  // actualizar ahí todavía.
-  const despachoDirecto = esSoloPan(pedido) && pedido.estado === "pendiente" && pedido.panEstado === "listo";
-  if (pedido.estado === "pendiente" && !despachoDirecto) return;
-  // Mismo criterio que al construir la tabla: los ítems que no son de pan de
-  // un pedido ya rechazado por central (con pan todavía en curso) siguen en
-  // guiones hasta que se despache, no hay nada de ellos para refrescar.
-  const soloPanEnCurso = pedido.estado === "rechazado" && (pedido.items || []).some(x => x.esPan);
-
-  const tbody = document.getElementById("modal-items");
-  (pedido.items || []).forEach((it, idx) => {
-    if (soloPanEnCurso && !it.esPan) return;
-    const fila = tbody.querySelector(`tr[data-idx="${idx}"]`);
-    if (!fila) return;
-    const enviada = it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida;
-    const difiere = Number(enviada) !== Number(it.cantidadPedida);
-    fila.querySelector(".celda-enviado").innerHTML =
-      `<span class="num-mono${difiere ? " font-700" : ""}"${difiere ? ' style="color:var(--rojo)"' : ""}>${enviada}</span>`;
-    fila.querySelector(".celda-nota").innerHTML =
-      `<span class="text-xs" style="color:var(--tinta-suave)">${escapeHtml(it.notaItem || "—")}</span>`;
-  });
+// ---------- Actualización en vivo del modal abierto ----------
+// Mientras el modal de un pedido está abierto se escucha ESE documento
+// directamente (no la lista): así se actualiza aunque el pedido no esté en
+// la tanda cargada (buscado por número, abierto desde un historial) y se
+// refresca el modal entero (botones, notas, tabla, historial), no solo
+// algunas partes. Lo que la persona ya escribió y no guardó se conserva.
+let unsubPedidoModal = null;
+let firmaPedidoModal = null;
+function firmaDePedido(p){ const { id, ...resto } = p; return JSON.stringify(resto); }
+function dejarDeEscucharPedido(){
+  if (unsubPedidoModal) { unsubPedidoModal(); unsubPedidoModal = null; }
 }
+function escucharPedidoAbierto(pedido){
+  dejarDeEscucharPedido();
+  firmaPedidoModal = firmaDePedido(pedido);
+  const id = pedido.id;
+  unsubPedidoModal = onSnapshot(
+    doc(db, "pedidos", id),
+    (snap) => {
+      // Si el modal se cerró (o se abrió otro pedido), ya no hay nada que refrescar.
+      if (document.getElementById("modal").classList.contains("hidden") || !pedidoActivo || pedidoActivo.id !== id) {
+        dejarDeEscucharPedido();
+        return;
+      }
+      if (!snap.exists()) { cerrarModalPorCambio(null, "Este pedido ya no existe."); return; }
+      const p = { id: snap.id, ...snap.data() };
+      const firma = firmaDePedido(p);
+      if (firma === firmaPedidoModal) return; // nada cambió de verdad
+      firmaPedidoModal = firma;
+      const previo = pedidoActivo;
+      pedidoActivo = p;
+      refrescarModal(p, previo);
+    },
+    (err) => console.error("Error escuchando el pedido abierto:", err)
+  );
+}
+new MutationObserver(() => {
+  if (document.getElementById("modal").classList.contains("hidden")) dejarDeEscucharPedido();
+}).observe(document.getElementById("modal"), { attributes: true, attributeFilter: ["class"] });
 
 function abrirModal(pedido){
+  renderModal(pedido);
+  escucharPedidoAbierto(pedido);
+}
+
+// Si el último movimiento del historial lo hizo esta misma cuenta hace instantes,
+// el cambio de estado fue por su propia acción y no hace falta avisarle nada.
+function fueAccionPropia(p){
+  const ult = (p?.historial || []).slice(-1)[0];
+  return !!ult && ult.por === miNombre && Date.now() - (ult.en || 0) < 15000;
+}
+function cerrarModalPorCambio(p, mensaje){
+  document.getElementById("modal").classList.add("hidden");
+  document.getElementById("modal").classList.remove("flex");
+  if (mensaje && !(p && fueAccionPropia(p))) alertaBonita(mensaje, { tipo: "advertencia" });
+}
+
+function refrescarModal(p, previo){
+  const cuerpo = document.querySelector("#modal .modal-cuerpo");
+  const scroll = cuerpo ? cuerpo.scrollTop : 0;
+  // Nota que central está escribiendo (motivo de rechazo / aclaraciones):
+  // solo se conserva si realmente la tocó (distinta de lo que se había mostrado).
+  const notaEl = document.getElementById("modal-nota-general");
+  const editable = !document.getElementById("modal-nota-general-editar-wrap").classList.contains("hidden");
+  const notaTipeada = editable && notaEl.value !== (previo.notaCentral || "") ? notaEl.value : null;
+  renderModal(p);
+  if (notaTipeada !== null && !document.getElementById("modal-nota-general-editar-wrap").classList.contains("hidden")) {
+    notaEl.value = notaTipeada;
+  }
+  if (cuerpo) cuerpo.scrollTop = scroll;
+}
+
+function renderModal(pedido){
   pedidoActivo = pedido;
   document.getElementById("modal-numero").textContent = "#" + (pedido.numero ?? "—");
   document.getElementById("modal-sucursal").textContent = pedido.sucursalNombre || "";
@@ -1270,7 +1298,7 @@ function abrirModal(pedido){
       <td class="py-2">${escapeHtml(it.nombre)} <span class="text-xs" style="color:var(--tinta-suave)">(${escapeHtml(etiquetaUnidad(it.unidad))})</span></td>
       <td class="py-2 text-right num-mono">${it.cantidadPedida}</td>
       <td class="py-2 text-right celda-enviado">${celdaEnviado}</td>
-      <td class="py-2 celda-nota">${celdaNota}</td>`;
+      <td class="py-2 pl-5 celda-nota">${celdaNota}</td>`;
     tbody.appendChild(tr);
   });
 
@@ -1323,6 +1351,14 @@ function abrirModal(pedido){
   // El remito solo tiene sentido una vez despachado (hay cantidades enviadas
   // para comparar contra lo pedido); se puede reimprimir después si hace falta.
   document.getElementById("btn-imprimir-remito").classList.toggle("hidden", !["enviado", "recibido"].includes(pedido.estado));
+
+  const motivoCancelWrap = document.getElementById("modal-motivo-cancelacion-wrap");
+  if (pedido.estado === "cancelado" && pedido.notaCancelacion) {
+    motivoCancelWrap.classList.remove("hidden");
+    document.getElementById("modal-motivo-cancelacion").textContent = pedido.notaCancelacion;
+  } else {
+    motivoCancelWrap.classList.add("hidden");
+  }
 
   renderHistorial(pedido);
   document.getElementById("modal").classList.remove("hidden");
@@ -1520,11 +1556,6 @@ function imprimirRemito(p, items, notaGeneral, fechaEnvioTexto){
   document.getElementById("rm-sucursal").textContent = p.sucursalNombre || "";
   document.getElementById("rm-fecha-pedido").textContent = fechaLegible(p.creadoEn);
   document.getElementById("rm-fecha-envio").textContent = fechaEnvioTexto;
-
-  const notaSucursal = (p.notaSucursalPedido || "").trim();
-  const wrapNotaSucursal = document.getElementById("rm-nota-sucursal-wrap");
-  wrapNotaSucursal.classList.toggle("hidden", !notaSucursal);
-  document.getElementById("rm-nota-sucursal").textContent = notaSucursal;
 
   const notaCentral = (notaGeneral || "").trim();
   const wrapNotaCentral = document.getElementById("rm-nota-central-wrap");
