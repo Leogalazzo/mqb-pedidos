@@ -288,10 +288,6 @@ function iniciarListener(){
     (snap) => {
       pedidosPan = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       renderPedidosPan();
-      if (pedidoActivo) {
-        const actualizado = pedidosPan.find(p => p.id === pedidoActivo.id);
-        if (actualizado) pedidoActivo = actualizado;
-      }
     },
     (err) => console.error("Error leyendo pedidos de pan:", err)
   );
@@ -300,7 +296,94 @@ function iniciarListener(){
 // ---------- Modal ----------
 let pedidoActivo = null;
 
+// ---------- Actualización en vivo del modal abierto ----------
+// Mientras el modal de un pedido está abierto se escucha ESE documento
+// directamente (no la lista): así se actualiza aunque el pedido no esté en
+// la tanda cargada (buscado por número, abierto desde un historial) y se
+// refresca el modal entero (botones, notas, tabla, historial), no solo
+// algunas partes. Lo que la persona ya escribió y no guardó se conserva.
+let unsubPedidoModal = null;
+let firmaPedidoModal = null;
+function firmaDePedido(p){ const { id, ...resto } = p; return JSON.stringify(resto); }
+function dejarDeEscucharPedido(){
+  if (unsubPedidoModal) { unsubPedidoModal(); unsubPedidoModal = null; }
+}
+function escucharPedidoAbierto(pedido){
+  dejarDeEscucharPedido();
+  firmaPedidoModal = firmaDePedido(pedido);
+  const id = pedido.id;
+  unsubPedidoModal = onSnapshot(
+    doc(db, "pedidos", id),
+    (snap) => {
+      // Si el modal se cerró (o se abrió otro pedido), ya no hay nada que refrescar.
+      if (document.getElementById("modal").classList.contains("hidden") || !pedidoActivo || pedidoActivo.id !== id) {
+        dejarDeEscucharPedido();
+        return;
+      }
+      if (!snap.exists()) { cerrarModalPorCambio(null, "Este pedido ya no existe."); return; }
+      const p = { id: snap.id, ...snap.data() };
+      const firma = firmaDePedido(p);
+      if (firma === firmaPedidoModal) return; // nada cambió de verdad
+      firmaPedidoModal = firma;
+      const previo = pedidoActivo;
+      pedidoActivo = p;
+      refrescarModal(p, previo);
+    },
+    (err) => console.error("Error escuchando el pedido abierto:", err)
+  );
+}
+new MutationObserver(() => {
+  if (document.getElementById("modal").classList.contains("hidden")) dejarDeEscucharPedido();
+}).observe(document.getElementById("modal"), { attributes: true, attributeFilter: ["class"] });
+
 function abrirModal(pedido){
+  renderModal(pedido);
+  escucharPedidoAbierto(pedido);
+}
+
+// Si el último movimiento del historial lo hizo esta misma cuenta hace instantes,
+// el cambio de estado fue por su propia acción y no hace falta avisarle nada.
+function fueAccionPropia(p){
+  const ult = (p?.historial || []).slice(-1)[0];
+  return !!ult && ult.por === miNombre && Date.now() - (ult.en || 0) < 15000;
+}
+function cerrarModalPorCambio(p, mensaje){
+  document.getElementById("modal").classList.add("hidden");
+  document.getElementById("modal").classList.remove("flex");
+  if (mensaje && !(p && fueAccionPropia(p))) alertaBonita(mensaje, { tipo: "advertencia" });
+}
+
+function refrescarModal(p, previo){
+  if (!["pendiente", "en_proceso", "listo"].includes(p.panEstado)) {
+    cerrarModalPorCambio(p, `El pedido #${p.numero ?? ""} ya no está disponible para la panadería (fue cancelado, rechazado o el pan ya se resolvió).`);
+    return;
+  }
+  const cuerpo = document.querySelector("#modal .modal-cuerpo");
+  const scroll = cuerpo ? cuerpo.scrollTop : 0;
+  // Lo que la panadería ya tipeó y todavía no guardó (distinto de lo que se había mostrado).
+  const itemsPrevios = itemsDePan(previo);
+  const tipeado = [];
+  document.querySelectorAll("#modal-items .input-hecho, #modal-items .input-nota-item").forEach(inp => {
+    const it = itemsPrevios[Number(inp.dataset.idx)];
+    if (!it) return;
+    const esCant = inp.classList.contains("input-hecho");
+    const porDefecto = esCant ? String(it.cantidadEnviada != null ? it.cantidadEnviada : it.cantidadPedida) : (it.notaItem || "");
+    if (inp.value !== porDefecto) tipeado.push({ idx: inp.dataset.idx, esCant, valor: inp.value });
+  });
+  const notaRechazoEl = document.getElementById("modal-nota-rechazo");
+  const notaRechazo = notaRechazoEl.value;
+
+  renderModal(p);
+
+  tipeado.forEach(t => {
+    const inp = document.querySelector(`#modal-items .${t.esCant ? "input-hecho" : "input-nota-item"}[data-idx="${t.idx}"]`);
+    if (inp) inp.value = t.valor;
+  });
+  if (notaRechazo) notaRechazoEl.value = notaRechazo;
+  if (cuerpo) cuerpo.scrollTop = scroll;
+}
+
+function renderModal(pedido){
   pedidoActivo = pedido;
   document.getElementById("modal-numero").textContent = "#" + (pedido.numero ?? "—");
   document.getElementById("modal-sucursal").textContent = pedido.sucursalNombre || "";
